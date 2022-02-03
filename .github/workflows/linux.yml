@@ -7,7 +7,6 @@ jobs:
 
   build-linux:
 
-    if: False #Disable for now
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -18,8 +17,6 @@ jobs:
     - name: setup
       run: |
         sudo apt update
-        export CC=gcc-8
-        export CXX=g++-8
         cd ../..
         git clone https://github.com/open-ephys/plugin-GUI.git --branch master
         sudo ./plugin-GUI/Resources/Scripts/install_linux_dependencies.sh

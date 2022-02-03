@@ -7,7 +7,6 @@ jobs:
 
   build-mac:
 
-    if: False #Disable for now
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

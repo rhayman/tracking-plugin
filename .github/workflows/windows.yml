@@ -7,7 +7,6 @@ jobs:
 
   build-windows:
 
-    if: False #Disable for now
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
