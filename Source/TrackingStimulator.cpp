@@ -162,7 +162,8 @@ void TrackingStimulator::editCircle(int ind, float x, float y, float rad, bool o
 
 void TrackingStimulator::deleteCircle(int ind)
 {
-    m_circles.erase(m_circles.begin() + ind);
+    if (m_circles.size())
+        m_circles.erase(m_circles.begin() + ind);
 }
 
 void TrackingStimulator::disableCircles()
