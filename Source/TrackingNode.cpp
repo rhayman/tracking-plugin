@@ -47,7 +47,7 @@ TrackingNode::TrackingNode()
     , m_isAcquisitionTimeLogged (false)
     , m_received_msg (0)
 {
-    setProcessorType (PROCESSOR_TYPE_SOURCE);
+    setProcessorType (Plugin::Processor::SOURCE);
     sendSampleCount = false;
 
     cout << "Adding module" << endl;
@@ -71,8 +71,8 @@ TrackingNode::~TrackingNode()
 
 AudioProcessorEditor* TrackingNode::createEditor()
 {
-    editor = new TrackingNodeEditor (this, true);
-    return editor;
+    auto editor = std::make_unique<AudioProcessorEditor>(this, true);
+    return editor.get();
 }
 
 //Since the data needs a maximum buffer size but the actual number of read bytes might be less, let's
@@ -83,15 +83,23 @@ void TrackingNode::updateSettings()
     moduleEventChannels.clear();
     for (int i = 0; i < trackingModules.size(); i++)
     {
-        //It's going to be raw binary data, so let's make it uint8
-        EventChannel* chan = new EventChannel (EventChannel::UINT8_ARRAY, 1, 16, CoreServices::getGlobalSampleRate(), this);
-        chan->setName ("Tracking data");
-        chan->setDescription ("Tracking data received from Bonsai. x, y, width, height");
-        chan->setIdentifier ("external.tracking.rawData");
-        chan->addEventMetaData(new MetaDataDescriptor(MetaDataDescriptor::CHAR, 15, "Color", "Tracking source color to be displayed", "channelInfo.extra"));
-        chan->addEventMetaData(new MetaDataDescriptor(MetaDataDescriptor::INT32, 1, "Port", "Tracking source OSC port", "channelInfo.extra"));
-        chan->addEventMetaData(new MetaDataDescriptor(MetaDataDescriptor::CHAR, 15, "Address", "Tracking source OSC address", "channelInfo.extra"));
-        eventChannelArray.add (chan);
+        for (auto stream : getDataStreams()) {
+            //It's going to be raw binary data, so let's make it uint8
+            EventChannel::Settings s{ EventChannel::Type::CUSTOM,
+                String("Tracking data"),
+                String("Tracking data received from Bonsai. x, y, width, height"),
+                String("external.tracking.rawData"),
+                getDataStream(stream->getStreamId())
+            };
+            auto chan = new EventChannel(s);
+            auto mData = MetadataDescriptor{ MetadataDescriptor::MetadataType::CHAR, 15, String("Color"), String("Tracking source color to be displayed"), String("channelInfo.extra")};
+            chan->addEventMetadata(mData);
+            mData = MetadataDescriptor{ MetadataDescriptor::MetadataType::INT32, 1, String("Port"), String("Tracking source OSC port"), String("channelInfo.extra") };
+            chan->addEventMetadata(mData);
+            mData = MetadataDescriptor{ MetadataDescriptor::MetadataType::CHAR, 15, String("Address"), String("Tracking source OSC address"), String("channelInfo.extra") };
+            chan->addEventMetadata(mData);
+            eventChannels.add(chan);
+        }
     }
     lastNumInputs = getNumInputs();
 }
@@ -258,15 +266,18 @@ void TrackingNode::process (AudioSampleBuffer&)
             }
 
             setTimestampAndSamples (uint64(message->timestamp), 0);
-            MetaDataValueArray metadata;
-            MetaDataValuePtr color = new MetaDataValue(MetaDataDescriptor::CHAR, 15);
-            color->setValue(module->m_color.toLowerCase());
+            MetadataValueArray metadata;
+            auto desc = MetadataDescriptor{ MetadataDescriptor::MetadataType::CHAR, 15, String("color"), String("Tracking source color to be displayed"), String("channelInfo.extra") };
+            auto color = MetadataValue{ desc };
+            color.setValue(module->m_color);
             metadata.add(color);
-            MetaDataValuePtr port = new MetaDataValue(MetaDataDescriptor::INT32, 1);
-            port->setValue(module->m_port);
+            desc = MetadataDescriptor{ MetadataDescriptor::MetadataType::INT32, 1, String("port"), String("Tracking source OSC port"), String("channelInfo.extra") };
+            auto port = MetadataValue{desc};
+            port.setValue(module->m_port);
             metadata.add(port);
-            MetaDataValuePtr address = new MetaDataValue(MetaDataDescriptor::CHAR, 15);
-            address->setValue(module->m_address.toLowerCase());
+            desc = MetadataDescriptor{ MetadataDescriptor::MetadataType::CHAR, 15, String("address"), String("Tracking source OSC address"), String("channelInfo.extra") };
+            auto address = MetadataValue{desc};
+            address.setValue(module->m_address.toLowerCase());
             metadata.add(address);
             const EventChannel* chan = getEventChannel (getEventChannelIndex (i, getNodeId()));
             BinaryEventPtr event = BinaryEvent::createBinaryEvent (chan,
@@ -376,25 +387,21 @@ void TrackingNode::saveCustomParametersToXml (XmlElement* parentElement)
     }
 }
 
-void TrackingNode::loadCustomParametersFromXml ()
+void TrackingNode::loadCustomParametersFromXml (XmlElement* xml)
 {
     trackingModules.clear();
-    if (parametersAsXml == nullptr)
+    if (xml == nullptr)
     {
         return;
     }
 
-    forEachXmlChildElement (*parametersAsXml, mainNode)
-    {
-        if (mainNode->hasTagName ("TrackingNode"))
-        {
-            forEachXmlChildElement(*mainNode, source)
-            {
-                int port = source->getIntAttribute("port");
-                String address = source->getStringAttribute("address");
-                String color = source->getStringAttribute("color");
-
-                addSource (port, address, color);
+    for (auto* xmlNode : xml->getChildIterator()) {
+        if (xmlNode->hasTagName("TrackingNode")) {
+            for (auto* xml : xmlNode->getChildIterator()) {
+                int port = xml->getIntAttribute("port");
+                String address = xml->getStringAttribute("address");
+                String color = xml->getStringAttribute("color");
+                addSource(port, address, color);
             }
         }
     }

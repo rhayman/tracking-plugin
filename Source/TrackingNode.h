@@ -127,9 +127,9 @@ public:
     AudioProcessorEditor* createEditor();
     void updateSettings() override;
     void process (AudioSampleBuffer&) override;
-    bool isReady() override;
+    bool isReady();
     void saveCustomParametersToXml(XmlElement* parentElement) override;
-    void loadCustomParametersFromXml() override;
+    void loadCustomParametersFromXml(XmlElement* parentElement) override;
 
     void receiveMessage (int port, String address, const TrackingData &message);
     int getTrackingModuleIndex(int port, String address);
