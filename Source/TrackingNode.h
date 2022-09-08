@@ -110,6 +110,36 @@ private:
     std::vector<TrackingNode*> m_processors;
 };
 
+// Hold the settings for the TrackingNode
+class TrackingNodeSettings
+{
+public:
+    TrackingNodeSettings();
+    ~TrackingNodeSettings() {
+        if (m_messageQueue)
+        {
+            cout << "Deleting message queue" << endl;
+            delete m_messageQueue;
+        }
+        if (m_server)
+        {
+            m_server->stop();
+            cout << "Stopping thread" << endl;
+            m_server->stopThread(-1);
+            cout << "Waiting for exit" << endl;
+            m_server->waitForThreadToExit(-1);
+            cout << "Delete server" << endl;
+            delete m_server;
+        }
+    }
+    int m_port = -1;
+    String m_address;
+    String m_color;
+    TrackingQueue* m_messageQueue = nullptr;
+    TrackingServer* m_server = nullptr;
+    EventChannel* eventChannel;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNodeSettings);
+};
 
 /**
     This source processor allows you to pipe tracking data via OSC signals from Bonsai tracker.
@@ -122,17 +152,20 @@ public:
     /** The class constructor, used to initialize any members. */
     TrackingNode();
     /** The class destructor, used to deallocate memory */
-    ~TrackingNode();
+    ~TrackingNode() {};
 
     AudioProcessorEditor* createEditor();
     void updateSettings() override;
     void process (AudioSampleBuffer&) override;
     bool isReady();
+    /** Called when a parameter is updated*/
+    void parameterValueChanged(Parameter* param) override;
+
     void saveCustomParametersToXml(XmlElement* parentElement) override;
     void loadCustomParametersFromXml(XmlElement* parentElement) override;
 
     void receiveMessage (int port, String address, const TrackingData &message);
-    int getTrackingModuleIndex(int port, String address);
+    int getTrackingNodeSettingsIndex(int port, String address);
     void addSource (int port, String address, String color);
     void addSource ();
     void removeSource (int i);
@@ -148,51 +181,7 @@ public:
 
 private:
 
-    class TrackingModule
-    {
-    public:
-        TrackingModule(int port, String address, String color, TrackingNode *processor)
-            : m_port(port)
-            , m_address(address)
-            , m_color(color)
-            , m_messageQueue(new TrackingQueue())
-            , m_server(new TrackingServer(port, address))
-        {
-            m_server->addProcessor(processor);
-            m_server->startThread();
-        }
-        TrackingModule(TrackingNode *processor)
-            : m_port(0)
-            , m_address("")
-            , m_color("")
-            , m_messageQueue(new TrackingQueue())
-            , m_server(new TrackingServer())
-        {
-        }
-        ~TrackingModule() {
-            if (m_messageQueue)
-            {
-                cout << "Deleting message queue" << endl;
-                delete m_messageQueue;
-            }
-            if (m_server)
-            {
-                m_server->stop();
-                cout << "Stopping thread" << endl;
-                m_server->stopThread(-1);
-                cout << "Waiting for exit" << endl;
-                m_server->waitForThreadToExit(-1);
-                cout << "Delete server" << endl;
-                delete m_server;
-            }
-        }
-        int m_port = -1;
-        String m_address;
-        String m_color;
-        TrackingQueue *m_messageQueue = nullptr;
-        TrackingServer *m_server = nullptr;
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingModule);
-    };
+    
 
     int64 m_startingRecTimeMillis;
     int64 m_startingAcqTimeMillis;
@@ -203,11 +192,10 @@ private:
     bool m_isRecordingTimeLogged;
     bool m_isAcquisitionTimeLogged;   
     int m_received_msg;
-
-    Array<TrackingModule*> trackingModules;
-    Array<const EventChannel*> moduleEventChannels;
     int lastNumInputs;
 
+    StreamSettings<TrackingNodeSettings> settings;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingNode);
 
 };
