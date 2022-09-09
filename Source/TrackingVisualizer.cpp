@@ -41,7 +41,7 @@ TrackingVisualizer::TrackingVisualizer()
     , m_isRecording(false)
     , m_colorUpdated(false)
 {
-    setProcessorType (PROCESSOR_TYPE_SINK);
+    setProcessorType (Plugin::Processor::SINK);
 }
 
 TrackingVisualizer::~TrackingVisualizer()
@@ -50,8 +50,8 @@ TrackingVisualizer::~TrackingVisualizer()
 
 AudioProcessorEditor *TrackingVisualizer::createEditor()
 {
-    editor = new TrackingVisualizerEditor(this, true);
-    return editor;
+    editor = std::make_unique<TrackingVisualizerEditor>(this, true);
+    return editor.get();
 }
 
 void TrackingVisualizer::updateSettings()

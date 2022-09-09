@@ -60,12 +60,27 @@ TrackingNode::TrackingNode() : GenericProcessor ("Tracking Port")
     setProcessorType (Plugin::Processor::SOURCE);
     sendSampleCount = false;
 
-    addSelectedChannelsParameter(Parameter::STREAM_SCOPE, "Port", "Tracking source OSC port", 1);
-    addStringParameter(Parameter::STREAM_SCOPE,
+    addCategoricalParameter(Parameter::GLOBAL_SCOPE,
+        "Source",
+        "Tracking source",
+        { "Tracking source 1" },
+        0);
+    addSelectedChannelsParameter(Parameter::GLOBAL_SCOPE, "Port", "Tracking source OSC port", 1);
+    addCategoricalParameter(Parameter::GLOBAL_SCOPE,
         "Color",
         "Tracking source color to be displayed",
-        "red");
-    addIntParameter(Parameter::STREAM_SCOPE, "Address", "Tracking source OSC address", 27020, 0, 32768);
+        { "red",
+        "green",
+        "blue",
+        "magenta",
+        "cyan",
+        "orange",
+        "pink",
+        "grey",
+        "violet",
+        "yellow" },
+        0);
+    addIntParameter(Parameter::GLOBAL_SCOPE, "Address", "Tracking source OSC address", 27020, 0, 32768);
     lastNumInputs = 0;
 }
 
@@ -119,8 +134,17 @@ void TrackingNode::addSource (int port, String address, String color)
     cout << "Adding source" << port << endl;
     try
     {
-        auto module = TrackingNodeSettings(port, address, color, this);
-        settings.add(module);
+        for (auto stream : getDataStreams()) {
+            if ((*stream)["enable_stream"]) {
+                auto module = TrackingNodeSettings();
+                module.m_port = port;
+                module.m_address = address;
+                module.m_color = color;
+            }
+        }
+        
+        updateSettings();
+
     }
     catch (const std::runtime_error& e)
     {
@@ -131,41 +155,42 @@ void TrackingNode::addSource (int port, String address, String color)
 
 void TrackingNode::addSource ()
 {
-    cout << "Adding empty source" << endl;
+   /* cout << "Adding empty source" << endl;
     try
     {
-        auto *module = new TrackingNodeSettings(this);
+        auto module = TrackingNodeSettings();
         TrackingNodeSettings.add (module);
     }
     catch (const std::runtime_error& e)
     {
         std::cout << "Add source: " << e.what() << std::endl;
-    }
+    }*/
 
 }
 
 void TrackingNode::removeSource (int i)
 {
-    auto *current = TrackingNodeSettings.getReference(i);
+   /* auto *current = TrackingNodeSettings.getReference(i);
     TrackingNodeSettings.remove(i);
-    delete current;
+    delete current;*/
 }
 
 bool TrackingNode::isPortUsed(int port)
 {
     bool used = false;
-    for (int i = 0; i < TrackingNodeSettings.size (); i++)
-    {
-        auto *current = TrackingNodeSettings.getReference(i);
-        if (current->m_port == port)
-            used = true;
+    for (auto stream : getDataStreams()) {
+        if ((*stream)["enable_stream"]) {
+            TrackingNodeSettings* module = settings[stream->getStreamId()];
+            if (module->m_port > -1)
+                used = true;
+        }
     }
     return used;
 }
 
 void TrackingNode::setPort (int i, int port)
 {
-    if (i < 0 || i >= TrackingNodeSettings.size ())
+    /*if (i < 0 || i >= TrackingNodeSettings.size ())
     {
         return;
     }
@@ -186,22 +211,22 @@ void TrackingNode::setPort (int i, int port)
         {
             std::cout << "Set port: " << e.what() << std::endl;
         }
-    }
+    }*/
 }
 
 int TrackingNode::getPort(int i)
 {
-	if (i < 0 || i >= TrackingNodeSettings.size()) {
+	/*if (i < 0 || i >= TrackingNodeSettings.size()) {
 		return -1;
 	}
 
     auto *module = TrackingNodeSettings.getReference (i);
-    return module->m_port;
+    return module->m_port;*/
 }
 
 void TrackingNode::setAddress (int i, String address)
 {
-    if (i < 0 || i >= TrackingNodeSettings.size ())
+    /*if (i < 0 || i >= TrackingNodeSettings.size ())
     {
         return;
     }
@@ -222,39 +247,39 @@ void TrackingNode::setAddress (int i, String address)
         {
             std::cout << "Set address: " << e.what() << std::endl;
         }
-    }
+    }*/
 }
 
 String TrackingNode::getAddress(int i)
 {
-    if (i < 0 || i >= TrackingNodeSettings.size ()) {
+    /*if (i < 0 || i >= TrackingNodeSettings.size ()) {
 		return String("");
     }
 
     auto *module = TrackingNodeSettings.getReference (i);
-    return module->m_address;
+    return module->m_address;*/
 }
 
 void TrackingNode::setColor (int i, String color)
 {
-	if (i < 0 || i >= TrackingNodeSettings.size())
+	/*if (i < 0 || i >= TrackingNodeSettings.size())
 	{
 		return;
 	}
 	auto *module = TrackingNodeSettings.getReference(i);
 	module->m_color = color;
-	TrackingNodeSettings.set(i, module);
+	TrackingNodeSettings.set(i, module);*/
 
 }
 
 String TrackingNode::getColor(int i)
 {
-	if (i < 0 || i >= TrackingNodeSettings.size()) {
+	/*if (i < 0 || i >= TrackingNodeSettings.size()) {
 		return String("");
 	}
     
     auto *module = TrackingNodeSettings.getReference (i);
-    return module->m_color;
+    return module->m_color;*/
 }
 
 void TrackingNode::process (AudioSampleBuffer&)
@@ -318,75 +343,75 @@ void TrackingNode::process (AudioSampleBuffer&)
 
 int TrackingNode::getTrackingNodeSettingsIndex(int port, String address)
 {
-    int index = -1;
+    /*int index = -1;
     for (int i = 0; i < TrackingNodeSettings.size (); i++)
     {
         auto *current  = TrackingNodeSettings.getReference(i);
         if (current->m_port == port && current->m_address.compare(address) == 0)
             index = i;
     }
-    return index;
+    return index;*/
 }
 
 int TrackingNode::getNSources()
 {
-    return TrackingNodeSettings.size ();
+    //return TrackingNodeSettings.size ();
 }
 
 void TrackingNode::receiveMessage (int port, String address, const TrackingData &message)
 {
-    int index = getTrackingNodeSettingsIndex(port, address);
-    if (index != -1)
-    {
-        auto *selectedModule = TrackingNodeSettings.getReference (index);
+    //int index = getTrackingNodeSettingsIndex(port, address);
+    //if (index != -1)
+    //{
+    //    auto *selectedModule = TrackingNodeSettings.getReference (index);
 
-        lock.enter();
+    //    lock.enter();
 
-        if (CoreServices::getRecordingStatus())
-        {
-            if (!m_isRecordingTimeLogged)
-            {
-                m_received_msg = 0;
-                m_startingRecTimeMillis =  Time::currentTimeMillis();
-                m_isRecordingTimeLogged = true;
-                std::cout << "Starting Recording Ts: " << m_startingRecTimeMillis << std::endl;
-                selectedModule->m_messageQueue->clear();
-                CoreServices::sendStatusMessage ("Clearing queue before start recording");
-            }
-        }
-        else
-        {
-            m_isRecordingTimeLogged = false;
-        }
+    //    if (CoreServices::getRecordingStatus())
+    //    {
+    //        if (!m_isRecordingTimeLogged)
+    //        {
+    //            m_received_msg = 0;
+    //            m_startingRecTimeMillis =  Time::currentTimeMillis();
+    //            m_isRecordingTimeLogged = true;
+    //            std::cout << "Starting Recording Ts: " << m_startingRecTimeMillis << std::endl;
+    //            selectedModule->m_messageQueue->clear();
+    //            CoreServices::sendStatusMessage ("Clearing queue before start recording");
+    //        }
+    //    }
+    //    else
+    //    {
+    //        m_isRecordingTimeLogged = false;
+    //    }
 
 
-        if (CoreServices::getAcquisitionStatus()) // && !CoreServices::getRecordingStatus())
-        {
-            if (!m_isAcquisitionTimeLogged)
-            {
-                m_startingAcqTimeMillis = Time::currentTimeMillis();
-                m_isAcquisitionTimeLogged = true;
-                std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
-                selectedModule->m_messageQueue->clear();
-                CoreServices::sendStatusMessage ("Clearing queue before start acquisition");
-            }
+    //    if (CoreServices::getAcquisitionStatus()) // && !CoreServices::getRecordingStatus())
+    //    {
+    //        if (!m_isAcquisitionTimeLogged)
+    //        {
+    //            m_startingAcqTimeMillis = Time::currentTimeMillis();
+    //            m_isAcquisitionTimeLogged = true;
+    //            std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
+    //            selectedModule->m_messageQueue->clear();
+    //            CoreServices::sendStatusMessage ("Clearing queue before start acquisition");
+    //        }
 
-            m_positionIsUpdated = true;
+    //        m_positionIsUpdated = true;
 
-            // NOTE: We cannot trust the getGlobalTimestamp function because it can return
-            // negative time deltas. The reason is unknown.
-            int64 ts = CoreServices::getSoftwareTimestamp();
+    //        // NOTE: We cannot trust the getGlobalTimestamp function because it can return
+    //        // negative time deltas. The reason is unknown.
+    //        int64 ts = CoreServices::getSoftwareTimestamp();
 
-            TrackingData outputMessage = message;
-            outputMessage.timestamp = ts;
-            selectedModule->m_messageQueue->push (outputMessage);
-            m_received_msg++;
-        }
-        else
-            m_isAcquisitionTimeLogged = false;
+    //        TrackingData outputMessage = message;
+    //        outputMessage.timestamp = ts;
+    //        selectedModule->m_messageQueue->push (outputMessage);
+    //        m_received_msg++;
+    //    }
+    //    else
+    //        m_isAcquisitionTimeLogged = false;
 
-        lock.exit();
-    }
+    //    lock.exit();
+    //}
 
 }
 
@@ -397,7 +422,8 @@ bool TrackingNode::isReady()
 
 void TrackingNode::saveCustomParametersToXml (XmlElement* parentElement)
 {
-    XmlElement* mainNode = parentElement->createNewChildElement ("TrackingNode");
+    /*XmlElement* mainNode = parentElement->createNewChildElement ("TrackingNode");
+
     for (int i = 0; i < TrackingNodeSettings.size(); i++)
     {
         auto *module = TrackingNodeSettings.getReference (i);
@@ -406,13 +432,12 @@ void TrackingNode::saveCustomParametersToXml (XmlElement* parentElement)
         source->setAttribute ("address", module->m_address);
         source->setAttribute ("color", module->m_color);
         mainNode->addChildElement(source);
-    }
+    }*/
 }
 
 void TrackingNode::loadCustomParametersFromXml (XmlElement* xml)
 {
-    TrackingNodeSettings.clear();
-    if (xml == nullptr)
+    /*if (xml == nullptr)
     {
         return;
     }
@@ -426,7 +451,7 @@ void TrackingNode::loadCustomParametersFromXml (XmlElement* xml)
                 addSource(port, address, color);
             }
         }
-    }
+    }*/
 }
 
 // Class TrackingQueue methods

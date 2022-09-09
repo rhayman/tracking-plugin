@@ -180,9 +180,6 @@ public:
     String getColor(int i);
 
 private:
-
-    
-
     int64 m_startingRecTimeMillis;
     int64 m_startingAcqTimeMillis;
 
