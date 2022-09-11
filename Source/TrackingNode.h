@@ -125,7 +125,7 @@ public:
 
     EventChannel *eventChannel;
     MetadataValueArray m_metadata[3];
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingModule);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNodeSettings);
 };
 
 /**
@@ -139,7 +139,7 @@ public:
     /** The class constructor, used to initialize any members. */
     TrackingNode();
     /** The class destructor, used to deallocate memory */
-    ~TrackingNode();
+    ~TrackingNode(){};
 
     AudioProcessorEditor *createEditor();
     void updateSettings() override;
@@ -154,6 +154,7 @@ public:
     void addSource(int port, String address, String color);
     void addSource();
     void removeSource(int i);
+
     int getNSources();
     bool isPortUsed(int port);
 

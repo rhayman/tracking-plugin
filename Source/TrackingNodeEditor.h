@@ -41,21 +41,17 @@ class TrackingNodeEditor : public GenericEditor,
                            public ComboBox::Listener
 {
 public:
-    TrackingNodeEditor(GenericProcessor *parentNode, bool useDefaultParameterEditors);
+    TrackingNodeEditor(GenericProcessor *parentNode);
     virtual ~TrackingNodeEditor();
 
-    virtual void labelTextChanged(Label *labelThatHasChanged) override;
+    // virtual void labelTextChanged (Label* labelThatHasChanged) override;
     void buttonEvent(Button *button);
-    virtual void comboBoxChanged(ComboBox *c) override;
+    // virtual void comboBoxChanged (ComboBox* c) override;
 
     virtual void updateSettings();
-    void updateLabels();
+    // void updateLabels();
 
 private:
-    Array<String> color_palette;
-    ScopedPointer<ComboBox> sourceSelector;
-    ScopedPointer<UtilityButton> plusButton;
-    ScopedPointer<UtilityButton> minusButton;
     int selectedSource;
 
     void addTrackingSource();
@@ -85,12 +81,5 @@ public:
     /** Respond to button clicks */
     void buttonClicked(Button *button);
     void updateView() override;
-
-private:
-    ScopedPointer<ComboBox> sourceSelector;
-    ScopedPointer<UtilityButton> plusButton;
-    ScopedPointer<UtilityButton> minusButton;
-    Font titleFont = Font("CP Mono", "Plain", 14);
 };
-
 #endif // TRACKINGNODEEDITOR_H

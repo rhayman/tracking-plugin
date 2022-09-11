@@ -32,10 +32,9 @@
 #include "TrackingNodeEditor.h"
 #include "TrackingNode.h"
 
-TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode, bool useDefaultParameterEditors = true)
+TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
     : GenericEditor(parentNode), selectedSource(0)
 {
-
     TrackingNode *processor = (TrackingNode *)getProcessor();
     auto src_param = processor->getParameter("Source");
     addCustomParameterEditor(new SourceSelectorControl(src_param), 45, 30);
@@ -48,7 +47,31 @@ TrackingNodeEditor::~TrackingNodeEditor()
 {
 }
 
-void TrackingNodeEditor::comboBoxChanged(ComboBox *c)
+// void TrackingNodeEditor::comboBoxChanged(ComboBox *c) {}
+/*
+void TrackingNodeEditor::labelTextChanged (Label* label)
+{
+    int selectedSource = sourceSelector->getSelectedId() - 1;
+    TrackingNode* p = (TrackingNode*) getProcessor();
+
+    if (label == labelAdr)
+    {
+        Value val = label->getTextValue();
+        p->setAddress (selectedSource, val.getValue());
+        p->setColor(selectedSource, color_palette[colorSelector->getSelectedId()-1]);
+    }
+
+    if (label == labelPort)
+    {
+        Value val = label->getTextValue();
+        p->setPort (selectedSource, val.getValue());
+        p->setColor(selectedSource, color_palette[colorSelector->getSelectedId()-1]);
+    }
+    updateSettings();
+}
+
+void TrackingNodeEditor::comboBoxChanged(ComboBox* c)
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
 {
     if (c == sourceSelector)
     {
@@ -79,51 +102,78 @@ void TrackingNodeEditor::updateLabels()
             colorSelector->setSelectedId(i + 1);
     }
 }
+<<<<<<< HEAD
 
 void TrackingNodeEditor::buttonEvent(Button *button)
 {
     TrackingNode *p = (TrackingNode *)getProcessor();
+=======
+*/
+void TrackingNodeEditor::buttonEvent(Button *button)
+{
+    /*TrackingNode* p = (TrackingNode*) getProcessor();
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
     if (button == plusButton && p->getNSources() < MAX_SOURCES)
         addTrackingSource();
     else if (button == minusButton && p->getNSources() > 1)
         removeTrackingSource();
     else
         CoreServices::sendStatusMessage("Number of sources must be between 1 and 10!");
-    CoreServices::updateSignalChain(this);
+    CoreServices::updateSignalChain(this);*/
 }
 
 void TrackingNodeEditor::addTrackingSource()
 {
     std::cout << "Adding source" << std::endl;
     TrackingNode *p = (TrackingNode *)getProcessor();
+    /*std::cout << "Adding source" << std::endl;
+    TrackingNode* p = (TrackingNode*) getProcessor();
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
 
     p->addSource();
     updateSettings();
     sourceSelector->setSelectedId(sourceSelector->getNumItems());
-    selectedSource = sourceSelector->getSelectedId() - 1;
+    selectedSource = sourceSelector->getSelectedId() - 1;*/
 }
 
 void TrackingNodeEditor::removeTrackingSource()
 {
     std::cout << "Removing source" << std::endl;
     TrackingNode *p = (TrackingNode *)getProcessor();
+    /*std::cout << "Removing source" << std::endl;
+    TrackingNode* p = (TrackingNode*) getProcessor();
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
 
     p->removeSource(selectedSource);
     if (selectedSource >= p->getNSources())
         selectedSource = p->getNSources() - 1;
-    updateSettings();
+    updateSettings();*/
 }
 
 void TrackingNodeEditor::updateSettings()
 {
     TrackingNode *p = (TrackingNode *)getProcessor();
+    /*TrackingNode* p = (TrackingNode*) getProcessor();
+
+    auto eds = parameterEditors;
+
+
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
     sourceSelector->clear();
 
     for (int i = 0; i < p->getNSources(); i++)
         sourceSelector->addItem("Tracking source " + String(i + 1), i + 1);
 
+<<<<<<< HEAD
     sourceSelector->setSelectedId(selectedSource + 1);
     updateLabels();
+}
+
+SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor(param)
+{
+=======
+    sourceSelector->setSelectedId(selectedSource+1);
+    updateLabels();*/
 }
 
 SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor(param)
@@ -146,6 +196,7 @@ SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor
     addAndMakeVisible(minusButton);
 }
 
+<<<<<<< HEAD
 void SourceSelectorControl::comboBoxChanged(ComboBox *cb)
 {
     if (cb == sourceSelector)

@@ -37,6 +37,10 @@
 TrackingVisualizer::TrackingVisualizer()
     : GenericProcessor("Tracking Visual"), m_positionIsUpdated(false), m_clearTracking(false), m_isRecording(false), m_colorUpdated(false)
 {
+<<<<<<< HEAD
+=======
+    setProcessorType (Plugin::Processor::SINK);
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
 }
 
 TrackingVisualizer::~TrackingVisualizer()
@@ -45,7 +49,11 @@ TrackingVisualizer::~TrackingVisualizer()
 
 AudioProcessorEditor *TrackingVisualizer::createEditor()
 {
+<<<<<<< HEAD
     editor = std::make_unique<TrackingVisualizerEditor>(this);
+=======
+    editor = std::make_unique<TrackingVisualizerEditor>(this, true);
+>>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
     return editor.get();
 }
 
