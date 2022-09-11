@@ -52,10 +52,10 @@ public:
     TrackingVisualizer();
     ~TrackingVisualizer();
 
-    AudioProcessorEditor* createEditor();
+    AudioProcessorEditor *createEditor();
 
-    void process(AudioSampleBuffer& buffer) override;
-    void handleEvent (const EventChannel* eventInfo, const MidiMessage& event, int) override;
+    void process(AudioSampleBuffer &buffer) override;
+    void handleTTLEvent(TTLEventPtr event) override;
     void updateSettings();
 
     float getX(int s) const;
@@ -66,7 +66,7 @@ public:
     bool getClearTracking() const;
 
     int getNSources() const;
-    TrackingSources& getTrackingSource(int i) const;
+    TrackingSources &getTrackingSource(int i);
 
     void setClearTracking(bool clear);
 
@@ -76,7 +76,6 @@ public:
     void setColorIsUpdated(bool up);
 
 private:
-    
     Array<TrackingSources> sources;
 
     bool m_positionIsUpdated;
@@ -84,8 +83,7 @@ private:
     bool m_isRecording;
     bool m_colorUpdated;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingVisualizer);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingVisualizer);
 };
 
-
-#endif  // TRACKINGVISUALIZER_H_INCLUDED
+#endif // TRACKINGVISUALIZER_H_INCLUDED

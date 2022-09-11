@@ -36,24 +36,23 @@
 
 #include <EditorHeaders.h>
 
-class TrackingNodeEditor :
-        public GenericEditor,
-        public Label::Listener,
-        public ComboBox::Listener
+class TrackingNodeEditor : public GenericEditor,
+                           public Label::Listener,
+                           public ComboBox::Listener
 {
 public:
-    TrackingNodeEditor (GenericProcessor* parentNode, bool useDefaultParameterEditors);
+    TrackingNodeEditor(GenericProcessor *parentNode, bool useDefaultParameterEditors);
     virtual ~TrackingNodeEditor();
 
-    virtual void labelTextChanged (Label* labelThatHasChanged) override;
-    void buttonEvent(Button* button);
-    virtual void comboBoxChanged (ComboBox* c) override;
+    virtual void labelTextChanged(Label *labelThatHasChanged) override;
+    void buttonEvent(Button *button);
+    virtual void comboBoxChanged(ComboBox *c) override;
 
     virtual void updateSettings();
     void updateLabels();
 
 private:
-	Array<String> color_palette;
+    Array<String> color_palette;
     ScopedPointer<ComboBox> sourceSelector;
     ScopedPointer<UtilityButton> plusButton;
     ScopedPointer<UtilityButton> minusButton;
@@ -71,9 +70,27 @@ private:
     ScopedPointer<Label> colorLabel;
     ScopedPointer<ComboBox> colorSelector;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingNodeEditor);
-
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNodeEditor);
 };
 
+class SourceSelectorControl : public ParameterEditor,
+                              public ComboBox::Listener,
+                              public Button::Listener
+{
+public:
+    SourceSelectorControl(Parameter *);
+    ~SourceSelectorControl() {}
+    /** Respond to combo box selection */
+    void comboBoxChanged(ComboBox *cb);
+    /** Respond to button clicks */
+    void buttonClicked(Button *button);
+    void updateView() override;
 
-#endif  // TRACKINGNODEEDITOR_H
+private:
+    ScopedPointer<ComboBox> sourceSelector;
+    ScopedPointer<UtilityButton> plusButton;
+    ScopedPointer<UtilityButton> minusButton;
+    Font titleFont = Font("CP Mono", "Plain", 14);
+};
+
+#endif // TRACKINGNODEEDITOR_H

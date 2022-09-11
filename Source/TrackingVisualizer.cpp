@@ -35,13 +35,8 @@
 #include <algorithm>
 
 TrackingVisualizer::TrackingVisualizer()
-    : GenericProcessor("Tracking Visual")
-    , m_positionIsUpdated(false)
-    , m_clearTracking(false)
-    , m_isRecording(false)
-    , m_colorUpdated(false)
+    : GenericProcessor("Tracking Visual"), m_positionIsUpdated(false), m_clearTracking(false), m_isRecording(false), m_colorUpdated(false)
 {
-    setProcessorType (PROCESSOR_TYPE_SINK);
 }
 
 TrackingVisualizer::~TrackingVisualizer()
@@ -50,8 +45,8 @@ TrackingVisualizer::~TrackingVisualizer()
 
 AudioProcessorEditor *TrackingVisualizer::createEditor()
 {
-    editor = new TrackingVisualizerEditor(this, true);
-    return editor;
+    editor = std::make_unique<TrackingVisualizerEditor>(this);
+    return editor.get();
 }
 
 void TrackingVisualizer::updateSettings()
@@ -61,18 +56,18 @@ void TrackingVisualizer::updateSettings()
     int nEvents = getTotalEventChannels();
     for (int i = 0; i < nEvents; i++)
     {
-        const EventChannel* event = getEventChannel(i);
+        const EventChannel *event = getEventChannel(i);
         if (event->getName().compare("Tracking data") == 0)
         {
-            s.eventIndex = event->getSourceIndex();
-            s.sourceId =  event->getSourceNodeID();
-            s.name = "Tracking source " + String(event->getSourceIndex()+1);
+            s.eventIndex = event->getGlobalIndex();
+            s.sourceId = event->getSourceNodeId();
+            s.name = "Tracking source " + String(event->getGlobalIndex() + 1);
             s.color = "None";
             s.x_pos = -1;
             s.y_pos = -1;
             s.width = -1;
             s.height = -1;
-            sources.add (s);
+            sources.add(s);
             m_colorUpdated = true;
         }
     }
@@ -91,58 +86,56 @@ void TrackingVisualizer::process(AudioSampleBuffer &)
     }
 }
 
-void TrackingVisualizer::handleEvent (const EventChannel* eventInfo, const MidiMessage& event, int)
+void TrackingVisualizer::handleTTLEvent(TTLEventPtr event)
 {
-    if ((eventInfo->getName()).compare("Tracking data") != 0)
-    {
-        return;
-    }
+    // if ((event->getName()).compare("Tracking data") != 0)
+    // {
+    //     return;
+    // }
 
-    BinaryEventPtr evtptr = BinaryEvent::deserializeFromMessage(event, eventInfo);
+    // BinaryEventPtr evtptr = BinaryEvent::deserializeFromMessage(event, eventInfo);
 
-    int nodeId = evtptr->getSourceID();
-    int evtId = evtptr->getSourceIndex();
-    const auto *position = reinterpret_cast<const TrackingPosition *>(evtptr->getBinaryDataPointer());
+    // int nodeId = evtptr->getSourceID();
+    // int evtId = evtptr->getSourceIndex();
+    // const auto *position = reinterpret_cast<const TrackingPosition *>(evtptr->getBinaryDataPointer());
 
-    int nSources = sources.size ();
+    // int nSources = sources.size();
 
-    for (int i = 0; i < nSources; i++)
-    {
-        TrackingSources& currentSource = sources.getReference (i);
-        if (currentSource.sourceId == nodeId && evtId == currentSource.eventIndex)
-        {
-            if(!(position->x != position->x || position->y != position->y) && position->x != 0 && position->y != 0)
-            {
-                currentSource.x_pos = position->x;
-                currentSource.y_pos = position->y;
-            }
-            if(!(position->width != position->width || position->height != position->height))
-            {
-                currentSource.width = position->width;
-                currentSource.height = position->height;
-            }
+    // for (int i = 0; i < nSources; i++)
+    // {
+    //     TrackingSources &currentSource = sources.getReference(i);
+    //     if (currentSource.sourceId == nodeId && evtId == currentSource.eventIndex)
+    //     {
+    //         if (!(position->x != position->x || position->y != position->y) && position->x != 0 && position->y != 0)
+    //         {
+    //             currentSource.x_pos = position->x;
+    //             currentSource.y_pos = position->y;
+    //         }
+    //         if (!(position->width != position->width || position->height != position->height))
+    //         {
+    //             currentSource.width = position->width;
+    //             currentSource.height = position->height;
+    //         }
 
-            String sourceColor;
-            evtptr->getMetaDataValue(0)->getValue(sourceColor);
+    //         String sourceColor;
+    //         evtptr->getMetaDataValue(0)->getValue(sourceColor);
 
-            if (currentSource.color.compare(sourceColor) != 0)
-            {
-                currentSource.color = sourceColor;
-                m_colorUpdated = true;
-            }
-        }
-    }
+    //         if (currentSource.color.compare(sourceColor) != 0)
+    //         {
+    //             currentSource.color = sourceColor;
+    //             m_colorUpdated = true;
+    //         }
+    //     }
+    // }
 
-    m_positionIsUpdated = true;
-
+    // m_positionIsUpdated = true;
 }
 
-TrackingSources& TrackingVisualizer::getTrackingSource(int s) const
+TrackingSources &TrackingVisualizer::getTrackingSource(int s)
 {
     if (s < sources.size())
-        return sources.getReference (s);
+        return sources.getReference(s);
 }
-
 
 float TrackingVisualizer::getX(int s) const
 {
@@ -195,10 +188,9 @@ void TrackingVisualizer::setColorIsUpdated(bool up)
     m_colorUpdated = up;
 }
 
-
 int TrackingVisualizer::getNSources() const
 {
-    return sources.size ();
+    return sources.size();
 }
 
 void TrackingVisualizer::clearPositionUpdated()
