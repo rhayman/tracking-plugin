@@ -47,28 +47,9 @@ TrackingNodeEditor::~TrackingNodeEditor()
 {
 }
 
-// void TrackingNodeEditor::comboBoxChanged(ComboBox *c) {}
+void TrackingNodeEditor::comboBoxChanged(ComboBox *c) {}
 /*
-void TrackingNodeEditor::labelTextChanged (Label* label)
-{
-    int selectedSource = sourceSelector->getSelectedId() - 1;
-    TrackingNode* p = (TrackingNode*) getProcessor();
 
-    if (label == labelAdr)
-    {
-        Value val = label->getTextValue();
-        p->setAddress (selectedSource, val.getValue());
-        p->setColor(selectedSource, color_palette[colorSelector->getSelectedId()-1]);
-    }
-
-    if (label == labelPort)
-    {
-        Value val = label->getTextValue();
-        p->setPort (selectedSource, val.getValue());
-        p->setColor(selectedSource, color_palette[colorSelector->getSelectedId()-1]);
-    }
-    updateSettings();
-}
 
 void TrackingNodeEditor::comboBoxChanged(ComboBox* c)
 >>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
@@ -86,33 +67,9 @@ void TrackingNodeEditor::comboBoxChanged(ComboBox* c)
     }
 }
 
-void TrackingNodeEditor::updateLabels()
-{
-    if (selectedSource < 0)
-    {
-        return;
-    }
-    TrackingNode *p = (TrackingNode *)getProcessor();
-    labelAdr->setText(p->getAddress(selectedSource), dontSendNotification);
-    labelPort->setText(String(p->getPort(selectedSource)), dontSendNotification);
-
-    for (int i = 0; i < MAX_SOURCES; i++)
-    {
-        if (color_palette[i].compare(p->getColor(selectedSource)) == 0)
-            colorSelector->setSelectedId(i + 1);
-    }
-}
-<<<<<<< HEAD
-
 void TrackingNodeEditor::buttonEvent(Button *button)
 {
     TrackingNode *p = (TrackingNode *)getProcessor();
-=======
-*/
-void TrackingNodeEditor::buttonEvent(Button *button)
-{
-    /*TrackingNode* p = (TrackingNode*) getProcessor();
->>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
     if (button == plusButton && p->getNSources() < MAX_SOURCES)
         addTrackingSource();
     else if (button == minusButton && p->getNSources() > 1)
@@ -120,7 +77,7 @@ void TrackingNodeEditor::buttonEvent(Button *button)
     else
         CoreServices::sendStatusMessage("Number of sources must be between 1 and 10!");
     CoreServices::updateSignalChain(this);*/
-}
+// }
 
 void TrackingNodeEditor::addTrackingSource()
 {
@@ -178,34 +135,39 @@ SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor
 
 SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor(param)
 {
-    sourceSelector = new ComboBox();
+    sourceSelector = std::make_unique<ComboBox>();
     sourceSelector->setBounds(45, 30, 130, 20);
     sourceSelector->addListener(this);
-    addAndMakeVisible(sourceSelector);
+    addAndMakeVisible(sourceSelector.get());
 
-    plusButton = new UtilityButton("+", titleFont);
+    plusButton = std::make_unique<UtilityButton>("+", titleFont);
     plusButton->addListener(this);
     plusButton->setRadius(3.0f);
     plusButton->setBounds(10, 30, 20, 20);
-    addAndMakeVisible(plusButton);
+    addAndMakeVisible(plusButton.get());
 
-    minusButton = new UtilityButton("-", titleFont);
+    minusButton = make_unique<UtilityButton>("-", titleFont);
     minusButton->addListener(this);
     minusButton->setRadius(3.0f);
     minusButton->setBounds(190, 30, 20, 20);
-    addAndMakeVisible(minusButton);
+    addAndMakeVisible(minusButton.get());
 }
 
-<<<<<<< HEAD
 void SourceSelectorControl::comboBoxChanged(ComboBox *cb)
 {
-    if (cb == sourceSelector)
+    if (cb == sourceSelector.get())
     {
     }
 }
 
 void SourceSelectorControl::buttonClicked(Button *btn)
 {
+    if (btn == plusButton.get())
+    {
+    }
+    if (btn == minusButton.get())
+    {
+    }
 }
 
 void SourceSelectorControl::updateView()

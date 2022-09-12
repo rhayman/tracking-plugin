@@ -35,15 +35,15 @@
 #include <math.h>
 #include <string>
 
-//SourceListBox methods
+// SourceListBox methods
 
-SourceListBox::SourceListBox() : ListBox ("listbox", 0)
+SourceListBox::SourceListBox() : ListBox("listbox", 0)
 {
-    setModel (this);
-    setMultipleSelectionEnabled (true);
-    setClickingTogglesRowSelection	(true);
-    setColour (ListBox::outlineColourId, Colour(200, 255, 0));
-    setColour (ListBox::backgroundColourId, Colours::grey.withAlpha (0.7f));
+    setModel(this);
+    setMultipleSelectionEnabled(true);
+    setClickingTogglesRowSelection(true);
+    setColour(ListBox::outlineColourId, Colour(200, 255, 0));
+    setColour(ListBox::backgroundColourId, Colours::grey.withAlpha(0.7f));
 }
 
 int SourceListBox::getNumRows()
@@ -51,16 +51,16 @@ int SourceListBox::getNumRows()
     return array.size();
 }
 
-void SourceListBox::paintListBoxItem (int rowNumber, Graphics& g, int width, int height, bool rowIsSelected)
+void SourceListBox::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
 {
     if (rowIsSelected)
-        g.fillAll (Colours::lightblue);
+        g.fillAll(Colours::lightblue);
 
-    g.setColour (Colours::black);
-    g.setFont (height * 0.95f);
+    g.setColour(Colours::black);
+    g.setFont(height * 0.95f);
 
     String rowData = array[rowNumber];
-    g.drawText (rowData, 5, 0, width, height, Justification::centredLeft, true);
+    g.drawText(rowData, 5, 0, width, height, Justification::centredLeft, true);
 }
 
 void SourceListBox::setData(Array<String> data)
@@ -69,39 +69,37 @@ void SourceListBox::setData(Array<String> data)
 }
 
 TrackingVisualizerCanvas::TrackingVisualizerCanvas(TrackingVisualizer *TrackingVisualizer)
-    : processor(TrackingVisualizer)
-    , m_width(1.0)
-    , m_height(1.0)
+    : processor(TrackingVisualizer), m_width(1.0), m_height(1.0)
 {
     initButtonsAndLabels();
     startCallbacks();
 
-	color_palette["red"] = Colours::red;
-	color_palette["green"] = Colours::green;
-	color_palette["blue"] = Colours::blue;
-	color_palette["cyan"] = Colours::cyan;
-	color_palette["magenta"] = Colours::magenta;
-	color_palette["yellow"] = Colours::yellow;
-	color_palette["orange"] = Colours::orange;
-	color_palette["pink"] = Colours::pink;
-	color_palette["grey"] = Colours::grey;
-	color_palette["violet"] = Colours::violet;
-	color_palette["yellow"] = Colours::yellow;
-	color_palette["white"] = Colours::white;
-	color_palette["background"] = Colour(0, 18, 43);
+    color_palette["red"] = Colours::red;
+    color_palette["green"] = Colours::green;
+    color_palette["blue"] = Colours::blue;
+    color_palette["cyan"] = Colours::cyan;
+    color_palette["magenta"] = Colours::magenta;
+    color_palette["yellow"] = Colours::yellow;
+    color_palette["orange"] = Colours::orange;
+    color_palette["pink"] = Colours::pink;
+    color_palette["grey"] = Colours::grey;
+    color_palette["violet"] = Colours::violet;
+    color_palette["yellow"] = Colours::yellow;
+    color_palette["white"] = Colours::white;
+    color_palette["background"] = Colour(0, 18, 43);
 }
 
 TrackingVisualizerCanvas::~TrackingVisualizerCanvas()
 {
 }
 
-void TrackingVisualizerCanvas::paint (Graphics& g)
+void TrackingVisualizerCanvas::paint(Graphics &g)
 {
 
-    float plot_height = 0.97*getHeight();
-    float plot_width = 0.85*getWidth();
-    float plot_bottom_left_x = 0.15*getWidth();
-    float plot_bottom_left_y = 0.01*getHeight();
+    float plot_height = 0.97 * getHeight();
+    float plot_width = 0.85 * getWidth();
+    float plot_bottom_left_x = 0.15 * getWidth();
+    float plot_bottom_left_y = 0.01 * getHeight();
 
     // set aspect ratio to cam size
     float aC = m_width / m_height;
@@ -112,49 +110,42 @@ void TrackingVisualizerCanvas::paint (Graphics& g)
     g.setColour(Colours::black); // backbackround color
     g.fillRect(0, 0, getWidth(), getHeight());
 
-    g.setColour(color_palette["background"]); //background color
+    g.setColour(color_palette["background"]); // background color
     g.fillRect(int(plot_bottom_left_x), int(plot_bottom_left_y),
                int(camWidth), int(camHeight));
 
-    for (int i = 0; i < processor->getNSources (); i++)
+    for (int i = 0; i < processor->getNSources(); i++)
     {
         bool source_active = listbox->isRowSelected(i);
-        TrackingSources& source = processor->getTrackingSource(i);
+        TrackingSources &source = processor->getTrackingSource(i);
         Colour source_colour = color_palette[source.color];
         g.setColour(source_colour);
 
-        // update colors
-        if (processor->getColorIsUpdated())
-        {
-            update();
-            processor->setColorIsUpdated(false);
-        }
-
         // Plot trajectory as lines
-        if (m_positions[i].size () >= 2 && source_active)
+        if (m_positions[i].size() >= 2 && source_active)
         {
-            for(auto it = m_positions[i].begin()+1; it != m_positions[i].end(); it++)
+            for (auto it = m_positions[i].begin() + 1; it != m_positions[i].end(); it++)
             {
                 TrackingPosition position = *it;
-                TrackingPosition prev_position = *(it-1);
+                TrackingPosition prev_position = *(it - 1);
 
                 // if tracking data are empty positions are set to -1
                 if (prev_position.x != -1 && prev_position.y != -1)
                 {
-                    float x = camWidth*position.x + plot_bottom_left_x;
-                    float y = camHeight*position.y + plot_bottom_left_y;
-                    float x_prev = camWidth*prev_position.x + plot_bottom_left_x;
-                    float y_prev = camHeight*prev_position.y + plot_bottom_left_y;
+                    float x = camWidth * position.x + plot_bottom_left_x;
+                    float y = camHeight * position.y + plot_bottom_left_y;
+                    float x_prev = camWidth * prev_position.x + plot_bottom_left_x;
+                    float y_prev = camHeight * prev_position.y + plot_bottom_left_y;
                     g.drawLine(x_prev, y_prev, x, y, 5.0f);
                 }
             }
             // Plot current position as ellipse
-            if (!m_positions[i].empty ())
+            if (!m_positions[i].empty())
             {
                 TrackingPosition position = m_positions[i].back();
-                float x = camWidth*position.x + plot_bottom_left_x;
-                float y = camHeight*position.y + plot_bottom_left_y;
-                g.fillEllipse(x - 0.01*getHeight(), y - 0.01*getHeight(), 0.02*getHeight(), 0.02*getHeight());
+                float x = camWidth * position.x + plot_bottom_left_x;
+                float y = camHeight * position.y + plot_bottom_left_y;
+                g.fillEllipse(x - 0.01 * getHeight(), y - 0.01 * getHeight(), 0.02 * getHeight(), 0.02 * getHeight());
             }
         }
     }
@@ -162,13 +153,13 @@ void TrackingVisualizerCanvas::paint (Graphics& g)
 
 void TrackingVisualizerCanvas::resized()
 {
-    clearButton->setBounds(0.01*getWidth(), getHeight()-0.05*getHeight(), 0.13*getWidth(), 0.03*getHeight());
-    sourcesLabel->setBounds(0.01*getWidth(), getHeight()-0.7*getHeight(), 0.13*getWidth(), 0.03*getHeight());
-    listbox->setBounds(0.01*getWidth(), getHeight()-0.65*getHeight(), 0.13*getWidth(), 0.4*getHeight());
+    clearButton->setBounds(0.01 * getWidth(), getHeight() - 0.05 * getHeight(), 0.13 * getWidth(), 0.03 * getHeight());
+    sourcesLabel->setBounds(0.01 * getWidth(), getHeight() - 0.7 * getHeight(), 0.13 * getWidth(), 0.03 * getHeight());
+    listbox->setBounds(0.01 * getWidth(), getHeight() - 0.65 * getHeight(), 0.13 * getWidth(), 0.4 * getHeight());
     refresh();
 }
 
-void TrackingVisualizerCanvas::buttonClicked(Button* button)
+void TrackingVisualizerCanvas::buttonClicked(Button *button)
 {
     if (button == clearButton)
         clear();
@@ -176,7 +167,6 @@ void TrackingVisualizerCanvas::buttonClicked(Button* button)
 
 void TrackingVisualizerCanvas::refreshState()
 {
-
 }
 
 void TrackingVisualizerCanvas::update()
@@ -186,20 +176,20 @@ void TrackingVisualizerCanvas::update()
     int nSources = processor->getNSources();
     for (int i = 0; i < nSources; i++)
     {
-        TrackingSources& source = processor->getTrackingSource(i);
+        TrackingSources &source = processor->getTrackingSource(i);
         String name = source.name;
-        listboxData.add (name);
+        listboxData.add(name);
     }
 
     listbox->setData(listboxData);
     listbox->updateContent();
-
 }
 
 void TrackingVisualizerCanvas::refresh()
 {
-    if (processor->positionIsUpdated()) {
-        for (int i = 0; i<processor->getNSources(); i++)
+    if (processor->positionIsUpdated())
+    {
+        for (int i = 0; i < processor->getNSources(); i++)
         {
             TrackingPosition currPos;
             currPos.x = processor->getX(i);
@@ -215,7 +205,8 @@ void TrackingVisualizerCanvas::refresh()
         processor->clearPositionUpdated();
         repaint();
     }
-    if (processor->getIsRecording()){
+    if (processor->getIsRecording())
+    {
         if (!processor->getClearTracking())
         {
             processor->setClearTracking(true);
@@ -244,7 +235,7 @@ void TrackingVisualizerCanvas::setParameter(int, int, int, float)
 
 void TrackingVisualizerCanvas::clear()
 {
-    for (int i = 0; i<MAX_SOURCES; i++)
+    for (int i = 0; i < MAX_SOURCES; i++)
         m_positions[i].clear();
     repaint();
 }
@@ -265,5 +256,4 @@ void TrackingVisualizerCanvas::initButtonsAndLabels()
     sourcesLabel->setColour(Label::textColourId, Colour(200, 255, 0));
     addAndMakeVisible(sourcesLabel);
     sourcesLabel->setVisible(true);
-
 }

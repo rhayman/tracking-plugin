@@ -114,9 +114,10 @@ class TrackingNodeSettings
 public:
     TrackingNodeSettings();
     TrackingNodeSettings(int, String, String);
-    ~TrackingNodeSettings(){};
+    ~TrackingNodeSettings();
     TTLEventPtr createEvent(int64 sample_number, bool state);
 
+    String m_name;
     int m_port = -1;
     String m_address;
     String m_color;
@@ -139,9 +140,9 @@ public:
     /** The class constructor, used to initialize any members. */
     TrackingNode();
     /** The class destructor, used to deallocate memory */
-    ~TrackingNode(){};
+    ~TrackingNode();
 
-    AudioProcessorEditor *createEditor();
+    AudioProcessorEditor *createEditor() override;
     void updateSettings() override;
     void parameterValueChanged(Parameter *param);
     void process(AudioSampleBuffer &) override;
@@ -157,13 +158,6 @@ public:
 
     int getNSources();
     bool isPortUsed(int port);
-
-    void setAddress(int i, String address);
-    String getAddress(int i);
-    void setPort(int i, int port);
-    int getPort(int i);
-    void setColor(int i, String color);
-    String getColor(int i);
 
 private:
     class TrackingModule

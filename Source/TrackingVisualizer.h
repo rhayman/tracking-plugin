@@ -52,7 +52,7 @@ public:
     TrackingVisualizer();
     ~TrackingVisualizer();
 
-    AudioProcessorEditor *createEditor();
+    AudioProcessorEditor *createEditor() override;
 
     void process(AudioSampleBuffer &buffer) override;
     void handleTTLEvent(TTLEventPtr event) override;
@@ -72,8 +72,6 @@ public:
 
     void clearPositionUpdated();
     bool positionIsUpdated() const;
-    bool getColorIsUpdated() const;
-    void setColorIsUpdated(bool up);
 
 private:
     Array<TrackingSources> sources;

@@ -37,7 +37,6 @@
 #include <EditorHeaders.h>
 
 class TrackingNodeEditor : public GenericEditor,
-                           public Label::Listener,
                            public ComboBox::Listener
 {
 public:
@@ -46,7 +45,7 @@ public:
 
     // virtual void labelTextChanged (Label* labelThatHasChanged) override;
     void buttonEvent(Button *button);
-    // virtual void comboBoxChanged (ComboBox* c) override;
+    virtual void comboBoxChanged(ComboBox *c) override;
 
     virtual void updateSettings();
     // void updateLabels();
@@ -81,5 +80,11 @@ public:
     /** Respond to button clicks */
     void buttonClicked(Button *button);
     void updateView() override;
+
+private:
+    std::unique_ptr<ComboBox> sourceSelector;
+    std::unique_ptr<UtilityButton> plusButton;
+    std::unique_ptr<UtilityButton> minusButton;
+    Font titleFont = Font("CP Mono", "Plain", 14);
 };
 #endif // TRACKINGNODEEDITOR_H
