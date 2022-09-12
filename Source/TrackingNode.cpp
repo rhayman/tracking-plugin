@@ -38,8 +38,8 @@
 
 using namespace std;
 
-TrackingNodeSettings::TrackingNodeSettings(int port, String address, String color)
-    : m_port(port), m_address(address), m_color(color)
+TrackingNodeSettings::TrackingNodeSettings(String name, int port, String address, String color)
+    : m_source_name(name), m_port(port), m_address(address), m_color(color)
 {
     m_messageQueue = nullptr;
     m_server = nullptr;
@@ -60,22 +60,25 @@ TTLEventPtr TrackingNodeSettings::createEvent(int64 sample_number, bool state)
     auto message = m_messageQueue->pop();
     // attach metadata to the TTL Event as BinaryEvents aren't dealt with (yet?)
     // in GenericProcessor::checkForEvents()
+    auto name = MetadataValue(MetadataDescriptor::CHAR, 32);
+    name.setValue(m_source_name);
     auto port = MetadataValue(MetadataDescriptor::INT16, 1);
     port.setValue(m_port);
     auto address = MetadataValue(MetadataDescriptor::CHAR, 16);
     address.setValue(m_address);
     auto color = MetadataValue(MetadataDescriptor::CHAR, 16);
     color.setValue(m_color);
-    m_metadata->clear();
-    m_metadata->add(port);
-    m_metadata->add(address);
-    m_metadata->add(color);
+    m_metadata.clear();
+    m_metadata.add(name);
+    m_metadata.add(port);
+    m_metadata.add(address);
+    m_metadata.add(color);
 
     TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
                                                  message->timestamp,
                                                  16,
                                                  true,
-                                                 *m_metadata);
+                                                 m_metadata);
 
     return event;
 };
@@ -99,21 +102,17 @@ TrackingNode::TrackingNode()
                              "yellow"},
                             0);
     lastNumInputs = 0;
+    LOGD("Completed ctor of TrackingNode");
 }
 
 TrackingNode::~TrackingNode()
 {
-    for (int i = 0; i < trackingModules.size(); i++)
-    {
-        auto *current = trackingModules.getReference(i);
-        std::cout << "Removing source " << i << std::endl;
-        delete current;
-    }
 }
 
 AudioProcessorEditor *TrackingNode::createEditor()
 {
     auto editor = std::make_unique<TrackingNodeEditor>(this);
+    LOGD("Added editor");
     return editor.get();
 }
 
@@ -137,6 +136,7 @@ void TrackingNode::parameterValueChanged(Parameter *param)
 // add that info as a metadata field.
 void TrackingNode::updateSettings()
 {
+    LOGD("Updating settings...");
     settings.update(getDataStreams());
 
     for (auto stream : getDataStreams())
@@ -156,35 +156,34 @@ void TrackingNode::updateSettings()
         settings[stream->getStreamId()]->eventChannel = eventChannels.getLast();
     }
     lastNumInputs = getNumInputs();
+    LOGD("Completed updating settings");
 }
 
-void TrackingNode::addSource()
+void TrackingNode::addSource(uint16 currentStream)
 {
-    /* cout << "Adding empty source" << endl;
-     try
-     {
- <<<<<<< HEAD
-         auto *module = new TrackingModule(this);
-         trackingModules.add(module);
- =======
-         auto module = TrackingNodeSettings();
-         TrackingNodeSettings.add (module);
- >>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-     }
-     catch (const std::runtime_error &e)
-     {
-         std::cout << "Add source: " << e.what() << std::endl;
- <<<<<<< HEAD
-     }
- =======
-     }*/
+    LOGD("Adding source");
+    EventChannel::Settings s{EventChannel::Type::CUSTOM,
+                                 "Tracking data",
+                                 "Tracking data received from Bonsai. x, y, width, height",
+                                 "external.tracking.rawData",
+                                 getDataStream(currentStream)};
+    eventChannels.add(new EventChannel(s));
+    eventChannels.getLast()->addProcessor(processorInfo.get());
+    LOGD("Added source");
 }
 
-void TrackingNode::removeSource(int i)
-{
-    /* auto *current = TrackingNodeSettings.getReference(i);
-     TrackingNodeSettings.remove(i);
-     delete current;*/
+void TrackingNode::removeSource(String name) {
+    for (auto stream : getDataStreams())
+    {
+        if ((*stream)["enable_stream"])
+        {
+            TrackingNodeSettings *module = settings[stream->getStreamId()];
+            for ( auto ch: eventChannels ) {
+                if (module->eventChannel == ch)
+                    delete ch;
+            }
+        }
+    }
 }
 
 bool TrackingNode::isPortUsed(int port)
@@ -209,6 +208,7 @@ bool TrackingNode::isPortUsed(int port)
 
 void TrackingNode::process(AudioSampleBuffer &)
 {
+    LOGD("Process..");
     checkForEvents();
     if (!m_positionIsUpdated)
         return;
@@ -230,24 +230,8 @@ void TrackingNode::process(AudioSampleBuffer &)
     }
     lock.exit();
     m_positionIsUpdated = false;
+    LOGD("Processed");
 }
-
-// int TrackingNode::getTrackingNodeSettingsIndex(int port, String address)
-// {
-// int index = -1;
-// for (int i = 0; i < trackingModules.size(); i++)
-// {
-//     auto *current = trackingModules.getReference(i);
-/*int index = -1;
-for (int i = 0; i < TrackingNodeSettings.size (); i++)
-{
-    auto *current  = TrackingNodeSettings.getReference(i);
->>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-    if (current->m_port == port && current->m_address.compare(address) == 0)
-        index = i;
-}
-return index;*/
-// }
 
 int TrackingNode::getNSources()
 {
@@ -262,98 +246,52 @@ int TrackingNode::getNSources()
 
 void TrackingNode::receiveMessage(int port, String address, const TrackingData &message)
 {
-    int index = getTrackingModuleIndex(port, address);
-    if (index != -1)
+    LOGD("Receiving message");
+    for (auto stream : getDataStreams())
     {
-        auto *selectedModule = trackingModules.getReference(index);
-        // int index = getTrackingNodeSettingsIndex(port, address);
-        // if (index != -1)
-        //{
-        //     auto *selectedModule = TrackingNodeSettings.getReference (index);
-
-        //    lock.enter();
-
-        if (CoreServices::getRecordingStatus())
+        if ((*stream)["enable_stream"])
         {
-            if (!m_isRecordingTimeLogged)
+            TrackingNodeSettings *selectedModule = settings[stream->getStreamId()];
+            if (CoreServices::getRecordingStatus())
             {
-                m_received_msg = 0;
-                m_startingRecTimeMillis = Time::currentTimeMillis();
-                m_isRecordingTimeLogged = true;
-                std::cout << "Starting Recording Ts: " << m_startingRecTimeMillis << std::endl;
-                selectedModule->m_messageQueue->clear();
-                CoreServices::sendStatusMessage("Clearing queue before start recording");
+                if (!m_isRecordingTimeLogged)
+                {
+                    m_received_msg = 0;
+                    m_startingRecTimeMillis = Time::currentTimeMillis();
+                    m_isRecordingTimeLogged = true;
+                    std::cout << "Starting Recording Ts: " << m_startingRecTimeMillis << std::endl;
+                    selectedModule->m_messageQueue->clear();
+                    CoreServices::sendStatusMessage("Clearing queue before start recording");
+                }
             }
-        }
-        else
-        {
-            m_isRecordingTimeLogged = false;
-        }
-
-        if (CoreServices::getAcquisitionStatus()) // && !CoreServices::getRecordingStatus())
-        {
-            if (!m_isAcquisitionTimeLogged)
+            else
             {
-                m_startingAcqTimeMillis = Time::currentTimeMillis();
-                m_isAcquisitionTimeLogged = true;
-                std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
-                selectedModule->m_messageQueue->clear();
-                CoreServices::sendStatusMessage("Clearing queue before start acquisition");
+                m_isRecordingTimeLogged = false;
             }
-            //    if (CoreServices::getRecordingStatus())
-            //    {
-            //        if (!m_isRecordingTimeLogged)
-            //        {
-            //            m_received_msg = 0;
-            //            m_startingRecTimeMillis =  Time::currentTimeMillis();
-            //            m_isRecordingTimeLogged = true;
-            //            std::cout << "Starting Recording Ts: " << m_startingRecTimeMillis << std::endl;
-            //            selectedModule->m_messageQueue->clear();
-            //            CoreServices::sendStatusMessage ("Clearing queue before start recording");
-            //        }
-            //    }
-            //    else
-            //    {
-            //        m_isRecordingTimeLogged = false;
-            //    }
+            if (CoreServices::getAcquisitionStatus()) // && !CoreServices::getRecordingStatus())
+            {
+                if (!m_isAcquisitionTimeLogged)
+                {
+                    m_startingAcqTimeMillis = Time::currentTimeMillis();
+                    m_isAcquisitionTimeLogged = true;
+                    std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
+                    selectedModule->m_messageQueue->clear();
+                    CoreServices::sendStatusMessage("Clearing queue before start acquisition");
+                }
+                int64 ts = CoreServices::getSoftwareTimestamp();
 
-            //    if (CoreServices::getAcquisitionStatus()) // && !CoreServices::getRecordingStatus())
-            //    {
-            //        if (!m_isAcquisitionTimeLogged)
-            //        {
-            //            m_startingAcqTimeMillis = Time::currentTimeMillis();
-            //            m_isAcquisitionTimeLogged = true;
-            //            std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
-            //            selectedModule->m_messageQueue->clear();
-            //            CoreServices::sendStatusMessage ("Clearing queue before start acquisition");
-            //        }
+                TrackingData outputMessage = message;
+                outputMessage.timestamp = ts;
+                selectedModule->m_messageQueue->push(outputMessage);
+                m_received_msg++;
+            }
+            else
+                m_isAcquisitionTimeLogged = false;
 
-            //        m_positionIsUpdated = true;
-
-            //        // NOTE: We cannot trust the getGlobalTimestamp function because it can return
-            //        // negative time deltas. The reason is unknown.
-            int64 ts = CoreServices::getSoftwareTimestamp();
-
-            TrackingData outputMessage = message;
-            outputMessage.timestamp = ts;
-            selectedModule->m_messageQueue->push(outputMessage);
-            m_received_msg++;
+            lock.exit();
         }
-        else
-            m_isAcquisitionTimeLogged = false;
-
-        lock.exit();
     }
-    //        TrackingData outputMessage = message;
-    //        outputMessage.timestamp = ts;
-    //        selectedModule->m_messageQueue->push (outputMessage);
-    //        m_received_msg++;
-    //    }
-    //    else
-    //        m_isAcquisitionTimeLogged = false;
-
-    //    lock.exit();
-    //}
+    LOGD("Received message");
 }
 
 bool TrackingNode::isReady()
@@ -363,33 +301,28 @@ bool TrackingNode::isReady()
 
 void TrackingNode::saveCustomParametersToXml(XmlElement *parentElement)
 {
-    XmlElement *mainNode = parentElement->createNewChildElement("TrackingNode");
-    for (int i = 0; i < trackingModules.size(); i++)
-    {
-        auto *module = trackingModules.getReference(i);
-        XmlElement *source = new XmlElement("Source_" + String(i + 1));
+    for (auto stream : getDataStreams()) {
+        XmlElement *mainNode = parentElement->createNewChildElement("TrackingNode");
+        auto module = settings[stream->getStreamId()];
+        XmlElement *source = new XmlElement(module->m_source_name);
         source->setAttribute("port", module->m_port);
         source->setAttribute("address", module->m_address);
         source->setAttribute("color", module->m_color);
-        /*XmlElement* mainNode = parentElement->createNewChildElement ("TrackingNode");
-
-        for (int i = 0; i < TrackingNodeSettings.size(); i++)
-        {
-            auto *module = TrackingNodeSettings.getReference (i);
-            XmlElement* source = new XmlElement("Source_"+String(i+1));
-            source->setAttribute ("port", module->m_port);
-            source->setAttribute ("address", module->m_address);
-            source->setAttribute ("color", module->m_color);
-    >>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-            mainNode->addChildElement(source);
-        }*/
     }
 }
 
 void TrackingNode::loadCustomParametersFromXml(XmlElement *xml)
 {
-    auto address = xml->getStringAttribute("Color", "");
-    auto port = xml->getStringAttribute("Port", "");
+    LOGD("Loading params");
+    int streamIndex = 0;
+    Array<const DataStream*> availableStreams = getDataStreams();
+    for (auto* streamParams : xml->getChildIterator())
+    {
+        if (streamParams->hasTagName("TrackingNode"))
+        {
+        }
+    }
+    LOGD("Loaded params");
 }
 
 // Class TrackingQueue methods

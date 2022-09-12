@@ -35,107 +35,31 @@
 TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
     : GenericEditor(parentNode), selectedSource(0)
 {
+    LOGD("Creating editor");
     TrackingNode *processor = (TrackingNode *)getProcessor();
     auto src_param = processor->getParameter("Source");
     addCustomParameterEditor(new SourceSelectorControl(src_param), 45, 30);
     addSelectedChannelsParameterEditor("Port", 10, 55);
     addTextBoxParameterEditor("Address", 10, 80);
     addComboBoxParameterEditor("Color", 10, 105);
+    LOGD("Created editor");
 }
 
 TrackingNodeEditor::~TrackingNodeEditor()
 {
 }
 
-void TrackingNodeEditor::comboBoxChanged(ComboBox *c) {}
-/*
-
-
-void TrackingNodeEditor::comboBoxChanged(ComboBox* c)
->>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-{
-    if (c == sourceSelector)
-    {
-        selectedSource = c->getSelectedId() - 1;
-        updateLabels();
-    }
-    else if (c == colorSelector)
-    {
-        TrackingNode *p = (TrackingNode *)getProcessor();
-        String color = color_palette[c->getSelectedId() - 1];
-        p->setColor(selectedSource, color);
-    }
-}
-
-void TrackingNodeEditor::buttonEvent(Button *button)
-{
-    TrackingNode *p = (TrackingNode *)getProcessor();
-    if (button == plusButton && p->getNSources() < MAX_SOURCES)
-        addTrackingSource();
-    else if (button == minusButton && p->getNSources() > 1)
-        removeTrackingSource();
-    else
-        CoreServices::sendStatusMessage("Number of sources must be between 1 and 10!");
-    CoreServices::updateSignalChain(this);*/
-// }
-
-void TrackingNodeEditor::addTrackingSource()
-{
-    std::cout << "Adding source" << std::endl;
-    TrackingNode *p = (TrackingNode *)getProcessor();
-    /*std::cout << "Adding source" << std::endl;
-    TrackingNode* p = (TrackingNode*) getProcessor();
->>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-
-    p->addSource();
-    updateSettings();
-    sourceSelector->setSelectedId(sourceSelector->getNumItems());
-    selectedSource = sourceSelector->getSelectedId() - 1;*/
-}
-
-void TrackingNodeEditor::removeTrackingSource()
-{
-    std::cout << "Removing source" << std::endl;
-    TrackingNode *p = (TrackingNode *)getProcessor();
-    /*std::cout << "Removing source" << std::endl;
-    TrackingNode* p = (TrackingNode*) getProcessor();
->>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-
-    p->removeSource(selectedSource);
-    if (selectedSource >= p->getNSources())
-        selectedSource = p->getNSources() - 1;
-    updateSettings();*/
-}
 
 void TrackingNodeEditor::updateSettings()
 {
-    TrackingNode *p = (TrackingNode *)getProcessor();
-    /*TrackingNode* p = (TrackingNode*) getProcessor();
-
-    auto eds = parameterEditors;
-
-
->>>>>>> 4da46e85f249e18eccb07367a563011e4477a4bd
-    sourceSelector->clear();
-
-    for (int i = 0; i < p->getNSources(); i++)
-        sourceSelector->addItem("Tracking source " + String(i + 1), i + 1);
-
-<<<<<<< HEAD
-    sourceSelector->setSelectedId(selectedSource + 1);
-    updateLabels();
 }
+
+void TrackingNodeEditor::comboBoxChanged(ComboBox *c) {}
 
 SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor(param)
 {
-=======
-    sourceSelector->setSelectedId(selectedSource+1);
-    updateLabels();*/
-}
-
-SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor(param)
-{
-    sourceSelector = std::make_unique<ComboBox>();
+    LOGD("Creating source selector");
+    sourceSelector = std::make_unique<ComboBox>("Source");
     sourceSelector->setBounds(45, 30, 130, 20);
     sourceSelector->addListener(this);
     addAndMakeVisible(sourceSelector.get());
@@ -151,6 +75,7 @@ SourceSelectorControl::SourceSelectorControl(Parameter *param) : ParameterEditor
     minusButton->setRadius(3.0f);
     minusButton->setBounds(190, 30, 20, 20);
     addAndMakeVisible(minusButton.get());
+    LOGD("Created source selector");
 }
 
 void SourceSelectorControl::comboBoxChanged(ComboBox *cb)
@@ -164,9 +89,16 @@ void SourceSelectorControl::buttonClicked(Button *btn)
 {
     if (btn == plusButton.get())
     {
+        // add a tracking source
+        
     }
     if (btn == minusButton.get())
     {
+        // remove a tracking source
+        auto source_name = sourceSelector->getText();
+        auto *ed = (TrackingNodeEditor*)getParentComponent();
+        TrackingNode *p = (TrackingNode*)ed->getProcessor();
+        p->removeSource(source_name);
     }
 }
 

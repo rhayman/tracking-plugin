@@ -33,6 +33,7 @@
 #define TRACKINGNODE_H
 
 #include <ProcessorHeaders.h>
+#include "../../../plugin-GUI/Source/Utils/Utils.h"
 #include "TrackingMessage.h"
 
 #include "oscpack/osc/OscOutboundPacketStream.h"
@@ -113,11 +114,11 @@ class TrackingNodeSettings
 {
 public:
     TrackingNodeSettings();
-    TrackingNodeSettings(int, String, String);
-    ~TrackingNodeSettings();
+    TrackingNodeSettings(String, int, String, String);
+    ~TrackingNodeSettings() {};
     TTLEventPtr createEvent(int64 sample_number, bool state);
 
-    String m_name;
+    String m_source_name;
     int m_port = -1;
     String m_address;
     String m_color;
@@ -125,7 +126,7 @@ public:
     TrackingServer *m_server = nullptr;
 
     EventChannel *eventChannel;
-    MetadataValueArray m_metadata[3];
+    MetadataValueArray m_metadata;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNodeSettings);
 };
 
@@ -151,53 +152,15 @@ public:
     void loadCustomParametersFromXml(XmlElement *parentElement) override;
 
     void receiveMessage(int port, String address, const TrackingData &message);
-    int getTrackingModuleIndex(int port, String address);
-    void addSource(int port, String address, String color);
-    void addSource();
-    void removeSource(int i);
+    int getTrackingModuleIndex(String name, int port, String address);
+    void addSource(int port, String address, String color, uint16 currentStream);
+    void addSource(uint16 currentStream);
+    void removeSource(String name);
 
     int getNSources();
     bool isPortUsed(int port);
 
 private:
-    class TrackingModule
-    {
-    public:
-        TrackingModule(int port, String address, String color, TrackingNode *processor)
-            : m_port(port), m_address(address), m_color(color), m_messageQueue(new TrackingQueue()), m_server(new TrackingServer(port, address))
-        {
-            m_server->addProcessor(processor);
-            m_server->startThread();
-        }
-        TrackingModule(TrackingNode *processor)
-            : m_port(0), m_address(""), m_color(""), m_messageQueue(new TrackingQueue()), m_server(new TrackingServer())
-        {
-        }
-        ~TrackingModule()
-        {
-            if (m_messageQueue)
-            {
-                cout << "Deleting message queue" << endl;
-                delete m_messageQueue;
-            }
-            if (m_server)
-            {
-                m_server->stop();
-                cout << "Stopping thread" << endl;
-                m_server->stopThread(-1);
-                cout << "Waiting for exit" << endl;
-                m_server->waitForThreadToExit(-1);
-                cout << "Delete server" << endl;
-                delete m_server;
-            }
-        }
-        int m_port = -1;
-        String m_address;
-        String m_color;
-        TrackingQueue *m_messageQueue = nullptr;
-        TrackingServer *m_server = nullptr;
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingModule);
-    };
 
     int64 m_startingRecTimeMillis;
     int64 m_startingAcqTimeMillis;
@@ -209,7 +172,6 @@ private:
     bool m_isAcquisitionTimeLogged;
     int m_received_msg;
 
-    Array<TrackingModule *> trackingModules;
     Array<const EventChannel *> moduleEventChannels;
     int lastNumInputs;
 
