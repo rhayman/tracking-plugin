@@ -1,32 +1,23 @@
 /*
-    ------------------------------------------------------------------
+------------------------------------------------------------------
 
-    This file is part of the Tracking plugin for the Open Ephys GUI
-    Written by:
+This file is part of the Open Ephys GUI
+Copyright (C) 2022 Open Ephys
 
-    Alessio Buccino     alessiob@ifi.uio.no
-    Mikkel Lepperod
-    Svenn-Arne Dragly
+------------------------------------------------------------------
 
-    Center for Integrated Neuroplasticity CINPLA
-    Department of Biosciences
-    University of Oslo
-    Norway
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    ------------------------------------------------------------------
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef TRACKINGNODE_H
@@ -51,166 +42,252 @@
 #define DEF_ADDRESS "/red"
 #define DEF_COLOR "red"
 
-using namespace std;
+inline StringArray colors = {"red",
+							 "green",
+							 "blue",
+							 "magenta",
+							 "cyan",
+							 "orange",
+							 "pink",
+							 "grey",
+							 "violet",
+							 "yellow"};
 
-/**
-    This helper class allows stores input tracking data in a circular queue.
-*/
+// auto const desc_name = std::make_unique<MetadataDescriptor>(
+// 	MetadataDescriptor::MetadataType::CHAR,
+// 	64,
+// 	"Source name",
+// 	"Tracking source name",
+// 	"external.tracking.name");
+
+// auto const desc_port = std::make_unique<MetadataDescriptor>(
+// 	MetadataDescriptor::MetadataType::CHAR,
+// 	16,
+// 	"Source port",
+// 	"Tracking source port",
+// 	"external.tracking.port");
+
+// auto const desc_address = std::make_unique<MetadataDescriptor>(
+// 	MetadataDescriptor::MetadataType::CHAR,
+// 	16,
+// 	"Source address",
+// 	"Tracking source address",
+// 	"external.tracking.address");
+
+// auto const desc_position = std::make_unique<MetadataDescriptor>(
+// 	MetadataDescriptor::MetadataType::FLOAT,
+// 	4,
+// 	"Source position",
+// 	"Tracking  position",
+// 	"external.tracking.position");
+
+// auto const desc_color = std::make_unique<MetadataDescriptor>(
+// 	MetadataDescriptor::MetadataType::CHAR,
+// 	16,
+// 	"Source color",
+// 	"Tracking source color",
+// 	"external.tracking.color");
+
+//	This helper class allows stores input tracking data in a circular queue.
 class TrackingQueue
 {
 public:
+	TrackingQueue();
+	~TrackingQueue();
 
-    TrackingQueue();
-    ~TrackingQueue();
+	void push(const TrackingData &message);
+	TrackingData *pop();
 
-    void push (const TrackingData &message);
-    TrackingData *pop();
+	bool isEmpty();
+	void clear();
 
-    bool isEmpty();
-    void clear();
+	int count();
 
 private:
-    TrackingData m_buffer[BUFFER_SIZE];
-    int m_head;
-    int m_tail;
+	TrackingData m_buffer[BUFFER_SIZE];
+	int m_head;
+	int m_tail;
+	int _count = 0;
 };
 
-/**
-    This helper class is an OSC server running its own thread to keep data transmission
-    continuous.
-*/
+//	This helper class is an OSC server running its own thread to keep data transmission
+//	continuous.
 
 class TrackingNode;
 
-class TrackingServer: public osc::OscPacketListener,
-    public Thread
+class TrackingServer : public osc::OscPacketListener,
+					   public Thread
 {
 public:
-    TrackingServer ();
-    TrackingServer (int port, String address);
-    ~TrackingServer();
+	TrackingServer();
+	TrackingServer(int port, String address, TrackingNode *processor);
+	~TrackingServer();
 
-    void run();
-    void stop();
-
-    void addProcessor (TrackingNode* processor);
-    void removeProcessor (TrackingNode* processor);
+	void run();
+	void stop();
 
 protected:
-    virtual void ProcessMessage (const osc::ReceivedMessage& m, const IpEndpointName&);
+	virtual void ProcessMessage(const osc::ReceivedMessage &m, const IpEndpointName &);
 
 private:
-    TrackingServer (TrackingServer const&);
-    void operator= (TrackingServer const&);
+	TrackingServer(TrackingServer const &);
+	void operator=(TrackingServer const &);
 
-    int m_incomingPort;
-    String m_address;
+	int m_incomingPort;
+	String m_address;
 
-    UdpListeningReceiveSocket *m_listeningSocket = nullptr;
-    std::vector<TrackingNode*> m_processors;
+	UdpListeningReceiveSocket *m_listeningSocket;
+	TrackingNode* m_processor;
 };
 
-
-/**
-    This source processor allows you to pipe tracking data via OSC signals from Bonsai tracker.
-
-    @see TrackingNodeEditor
-*/
-class TrackingNode : public GenericProcessor
+class TrackingModule
 {
 public:
-    /** The class constructor, used to initialize any members. */
-    TrackingNode();
-    /** The class destructor, used to deallocate memory */
-    ~TrackingNode();
+	TrackingModule() {}
+	TrackingModule(String name, int port, String address, String color, TrackingNode *processor)
+		:m_name(name), m_port(port), m_address(address), m_color(color)
+	{
+		source.color = color;
+		source.name = name;
+		source.x_pos = -1;
+		source.y_pos = -1;
+		source.width = -1;
+		source.height = -1;
+		m_messageQueue = std::make_unique<TrackingQueue>();
+		m_server = std::make_unique<TrackingServer>(port, address, processor);
+		// m_server->addProcessor(processor);
+		m_server->startThread();
+	}
 
-    AudioProcessorEditor* createEditor();
-    void updateSettings() override;
-    void process (AudioSampleBuffer&) override;
-    bool isReady() override;
-    void saveCustomParametersToXml(XmlElement* parentElement) override;
-    void loadCustomParametersFromXml() override;
+	~TrackingModule() {}
 
-    void receiveMessage (int port, String address, const TrackingData &message);
-    int getTrackingModuleIndex(int port, String address);
-    void addSource (int port, String address, String color);
-    void addSource ();
-    void removeSource (int i);
-    int getNSources();
-    bool isPortUsed(int port);
+	friend std::ostream &operator<<(std::ostream &, const TrackingModule &);
 
-    void setAddress (int i, String address);
-    String getAddress(int i);
-    void setPort (int i,int port);
-    int getPort(int i);
-    void setColor (int i, String color);
-    String getColor(int i);
+	String m_name;
+	int m_port = DEF_PORT;
+	String m_address = String(DEF_ADDRESS);
+	String m_color = String(DEF_COLOR);
 
-private:
+	std::unique_ptr<TrackingQueue> m_messageQueue;
+	std::unique_ptr<TrackingServer> m_server;
 
-    class TrackingModule
-    {
-    public:
-        TrackingModule(int port, String address, String color, TrackingNode *processor)
-            : m_port(port)
-            , m_address(address)
-            , m_color(color)
-            , m_messageQueue(new TrackingQueue())
-            , m_server(new TrackingServer(port, address))
-        {
-            m_server->addProcessor(processor);
-            m_server->startThread();
-        }
-        TrackingModule(TrackingNode *processor)
-            : m_port(0)
-            , m_address("")
-            , m_color("")
-            , m_messageQueue(new TrackingQueue())
-            , m_server(new TrackingServer())
-        {
-        }
-        ~TrackingModule() {
-            if (m_messageQueue)
-            {
-                cout << "Deleting message queue" << endl;
-                delete m_messageQueue;
-            }
-            if (m_server)
-            {
-                m_server->stop();
-                cout << "Stopping thread" << endl;
-                m_server->stopThread(-1);
-                cout << "Waiting for exit" << endl;
-                m_server->waitForThreadToExit(-1);
-                cout << "Delete server" << endl;
-                delete m_server;
-            }
-        }
-        int m_port = -1;
-        String m_address;
-        String m_color;
-        TrackingQueue *m_messageQueue = nullptr;
-        TrackingServer *m_server = nullptr;
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingModule);
-    };
+	EventChannel *eventChannel;
 
-    int64 m_startingRecTimeMillis;
-    int64 m_startingAcqTimeMillis;
-
-    CriticalSection lock;
-
-    bool m_positionIsUpdated;
-    bool m_isRecordingTimeLogged;
-    bool m_isAcquisitionTimeLogged;   
-    int m_received_msg;
-
-    Array<TrackingModule*> trackingModules;
-    Array<const EventChannel*> moduleEventChannels;
-    int lastNumInputs;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingNode);
-
+	TrackingSources source;
+	
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingModule);
 };
 
+// class TrackingNodeSettings
+// {
+// private:
+// public:
+// 	TrackingNodeSettings()
+// 	{
+// 		meta_position = std::make_unique<MetadataValue>(*desc_position);
+// 	};
+// 	TTLEventPtr createEvent(int idx, int64 sample_number);
 
-#endif  // TRACKINGNODE_H
+// 	std::unique_ptr<MetadataValue> meta_position;
+// 	OwnedArray<TrackingModule> trackers;
+// 	bool removeTracker(const String & moduleToRemove);
+// 	int getPort(int idx) { return trackers[idx]->m_port.getIntValue(); }
+// 	String getName(int idx) { return trackers[idx]->m_name; }
+// 	String getAddress(int idx) { return trackers[idx]->m_address; }
+// 	void updateTracker(int idx, Parameter *param, juce::var value);
+// 	void clearQueue(int idx) {
+// 		trackers[idx]->m_messageQueue->clear();
+// 	};
+// 	void pushMessage(int idx, TrackingData msg) {
+// 		trackers[idx]->m_messageQueue->push(msg);
+// 	}
+// };
+
+class TrackingNode : public GenericProcessor
+{
+private:
+	int64 m_startingRecTimeMillis;
+	int64 m_startingAcqTimeMillis;
+
+	CriticalSection lock;
+
+	bool m_positionIsUpdated;
+	bool m_isRecordingTimeLogged;
+	bool m_isAcquisitionTimeLogged;
+	bool m_isInitialized = false;
+	bool messageReceived;
+
+	// StreamSettings<TrackingNodeSettings> settings;
+
+	MetadataValueArray m_metadata;
+	MetadataValue* meta_position;
+	MetadataValue* meta_port;
+	MetadataValue* meta_name;
+	MetadataValue* meta_address;
+
+	OwnedArray<TrackingModule> trackers;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNode);
+
+public:
+	/** The class constructor, used to initialize any members. */
+	TrackingNode();
+
+	/** The class destructor, used to deallocate memory */
+	~TrackingNode() {}
+
+	/** If the processor has a custom editor, this method must be defined to instantiate it. */
+	AudioProcessorEditor *createEditor() override;
+
+	// void initialize(bool signalChainIsLoading) override;
+
+	bool startAcquisition() override;
+
+	bool stopAcquisition() override;
+
+	void addSource(String name, int port=0, String address="", String color="");
+
+	void removeSource(int index);
+
+	void parameterValueChanged(Parameter *param) override;
+
+	/** Called every time the settings of an upstream plugin are changed.
+		Allows the processor to handle variations in the channel configuration or any other parameter
+		passed through signal chain. The processor can use this function to modify channel objects that
+		will be passed to downstream plugins. */
+	void updateSettings() override;
+
+	/** Defines the functionality of the processor.
+		The process method is called every time a new data buffer is available.
+		Visualizer plugins typically use this method to send data to the canvas for display purposes */
+	void process(AudioBuffer<float> &buffer) override;
+
+	/** Saving custom settings to XML. This method is not needed to save the state of
+		Parameter objects */
+	void saveCustomParametersToXml(XmlElement *parentElement) override;
+
+	/** Load custom settings from XML. This method is not needed to load the state of
+		Parameter objects*/
+	void loadCustomParametersFromXml(XmlElement *parentElement) override;
+
+	// receives a message from the osc server
+	void receiveMessage(int port, String address, const TrackingData &message);
+
+	int getPort(int idx);
+	void setPort (int idx, int port);
+
+	String getAddress(int idx);
+	void setAddress (int i, String address);
+
+	void setColor (int i, String color);
+    String getColor(int i);
+
+	int getNumSources();
+
+	TrackingSources &getTrackingSource(int i);
+
+    void clearPositionUpdated();
+    bool positionIsUpdated() const;
+};
+
+#endif

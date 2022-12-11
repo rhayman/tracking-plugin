@@ -2,7 +2,7 @@
 ------------------------------------------------------------------
 
 This file is part of the Open Ephys GUI
-Copyright (C) 2013 Open Ephys
+Copyright (C) 2022 Open Ephys
 
 ------------------------------------------------------------------
 
@@ -18,15 +18,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 #include <PluginInfo.h>
+
 #include "TrackingNode.h"
-#include "TrackingVisualizer.h"
-#include "TrackingStimulator.h"
 #include <string>
-#ifdef WIN32
+
+#ifdef _WIN32
 #include <Windows.h>
 #define EXPORT __declspec(dllexport)
 #else
@@ -34,52 +33,44 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 using namespace Plugin;
-#define NUM_PLUGINS 3
 
-extern "C" EXPORT void getLibInfo (Plugin::LibraryInfo* info)
+#define NUM_PLUGINS 1
+
+extern "C" EXPORT void getLibInfo(Plugin::LibraryInfo *info)
 {
-    info->apiVersion = PLUGIN_API_VER;
-    info->name = "Tracking";
-    info->libVersion = 1;
-    info->numPlugins = NUM_PLUGINS;
+	/* API version, defined by the GUI source.
+	Should not be changed to ensure it is always equal to the one used in the latest codebase.
+	The GUI refueses to load plugins with mismatched API versions */
+	info->apiVersion = PLUGIN_API_VER;
+	info->name = "Tracking Plugin";	// <---- update
+	info->libVersion = "0.6.0"; // <---- update
+	info->numPlugins = NUM_PLUGINS;
 }
 
-extern "C" EXPORT int getPluginInfo (int index, Plugin::PluginInfo* info)
+extern "C" EXPORT int getPluginInfo(int index, Plugin::PluginInfo *info)
 {
-    switch (index)
-    {
-    case 0:
-        info->type = Plugin::PLUGIN_TYPE_PROCESSOR;
-        info->processor.name = "Tracking Port";
-        info->processor.type = Plugin::SourceProcessor;
-        info->processor.creator = & (Plugin::createProcessor<TrackingNode>);
-        break;
-    case 1:
-        info->type = Plugin::PLUGIN_TYPE_PROCESSOR;
-        info->processor.name = "Tracking Stim";
-        info->processor.type = Plugin::FilterProcessor;
-        info->processor.creator = & (Plugin::createProcessor<TrackingStimulator>);
-        break;
-    case 2:
-        info->type = Plugin::PLUGIN_TYPE_PROCESSOR;
-        info->processor.name = "Tracking Visual";
-        info->processor.type = Plugin::SinkProcessor;
-        info->processor.creator = & (Plugin::createProcessor<TrackingVisualizer>);
-        break;
-    default:
-        return -1;
-        break;
-    }
+	switch (index)
+	{
+	case 0:
+		info->type = Plugin::Type::PROCESSOR;
+		info->processor.name = "Tracking Plugin"; // Processor name shown in the GUI
+		info->processor.type = Processor::Type::FILTER;
+		info->processor.creator = &(Plugin::createProcessor<TrackingNode>);
+		break;
 
-    return 0;
+	default:
+		return -1;
+		break;
+	}
+	return 0;
 }
 
-#ifdef WIN32
-BOOL WINAPI DllMain (IN HINSTANCE hDllHandle,
-                     IN DWORD     nReason,
-                     IN LPVOID    Reserved)
+#ifdef _WIN32
+BOOL WINAPI DllMain(IN HINSTANCE hDllHandle,
+					IN DWORD nReason,
+					IN LPVOID Reserved)
 {
-    return TRUE;
+	return TRUE;
 }
 
 #endif

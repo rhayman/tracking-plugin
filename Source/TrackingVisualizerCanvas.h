@@ -33,12 +33,12 @@
 #define TRACKINGVISUALIZERCANVAS_H_INCLUDED
 
 #include <VisualizerWindowHeaders.h>
-#include "TrackingVisualizerEditor.h"
-#include "TrackingVisualizer.h"
+#include "TrackingNodeEditor.h"
+#include "TrackingNode.h"
 #include <vector>
 #include <map>
 
-class TrackingVisualizer;
+class TrackingNode;
 
 class SourceListBox : public ListBox,
         public ListBoxModel
@@ -61,7 +61,7 @@ class TrackingVisualizerCanvas : public Visualizer,
         public Button::Listener
 {
 public:
-    TrackingVisualizerCanvas(TrackingVisualizer* TrackingVisualizer);
+    TrackingVisualizerCanvas(TrackingNode* node);
     ~TrackingVisualizerCanvas();
 
     void paint (Graphics&);
@@ -72,17 +72,17 @@ public:
     virtual void buttonClicked(Button* button);
 
     // Visualizer interface
-    virtual void refreshState();
-    virtual void update();
-    virtual void refresh();
-    virtual void beginAnimation();
-    virtual void endAnimation();
+    virtual void refreshState() override;
+    virtual void update() override;
+    virtual void refresh() override;
+    virtual void beginAnimation() override;
+    virtual void endAnimation() override;
     virtual void setParameter(int, float);
     virtual void setParameter(int, int, int, float);
 
 private:
 
-    TrackingVisualizer* processor;
+    TrackingNode* processor;
     float m_x;
     float m_y;
     float m_width;

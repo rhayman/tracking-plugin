@@ -30,7 +30,6 @@
 */
 
 #include "TrackingVisualizerCanvas.h"
-#include "TrackingVisualizer.h"
 
 #include <math.h>
 #include <string>
@@ -68,13 +67,13 @@ void SourceListBox::setData(Array<String> data)
     array = data;
 }
 
-TrackingVisualizerCanvas::TrackingVisualizerCanvas(TrackingVisualizer *TrackingVisualizer)
-    : processor(TrackingVisualizer)
+TrackingVisualizerCanvas::TrackingVisualizerCanvas(TrackingNode *node)
+    : processor(node)
     , m_width(1.0)
     , m_height(1.0)
 {
     initButtonsAndLabels();
-    startCallbacks();
+    // startCallbacks();
 
 	color_palette["red"] = Colours::red;
 	color_palette["green"] = Colours::green;
@@ -97,7 +96,6 @@ TrackingVisualizerCanvas::~TrackingVisualizerCanvas()
 
 void TrackingVisualizerCanvas::paint (Graphics& g)
 {
-
     float plot_height = 0.97*getHeight();
     float plot_width = 0.85*getWidth();
     float plot_bottom_left_x = 0.15*getWidth();
@@ -116,19 +114,12 @@ void TrackingVisualizerCanvas::paint (Graphics& g)
     g.fillRect(int(plot_bottom_left_x), int(plot_bottom_left_y),
                int(camWidth), int(camHeight));
 
-    for (int i = 0; i < processor->getNSources (); i++)
+    for (int i = 0; i < processor->getNumSources(); i++)
     {
         bool source_active = listbox->isRowSelected(i);
         TrackingSources& source = processor->getTrackingSource(i);
         Colour source_colour = color_palette[source.color];
         g.setColour(source_colour);
-
-        // update colors
-        if (processor->getColorIsUpdated())
-        {
-            update();
-            processor->setColorIsUpdated(false);
-        }
 
         // Plot trajectory as lines
         if (m_positions[i].size () >= 2 && source_active)
@@ -183,7 +174,8 @@ void TrackingVisualizerCanvas::update()
 {
     Array<String> listboxData;
 
-    int nSources = processor->getNSources();
+    int nSources = processor->getNumSources();
+
     for (int i = 0; i < nSources; i++)
     {
         TrackingSources& source = processor->getTrackingSource(i);
@@ -199,29 +191,30 @@ void TrackingVisualizerCanvas::update()
 void TrackingVisualizerCanvas::refresh()
 {
     if (processor->positionIsUpdated()) {
-        for (int i = 0; i<processor->getNSources(); i++)
+        for (int i = 0; i<processor->getNumSources(); i++)
         {
+            TrackingSources& source = processor->getTrackingSource(i);
             TrackingPosition currPos;
-            currPos.x = processor->getX(i);
-            currPos.y = processor->getY(i);
-            currPos.width = processor->getWidth(i);
-            currPos.height = processor->getHeight(i);
+            currPos.x = source.x_pos;
+            currPos.y = source.y_pos;
+            currPos.width = source.width;
+            currPos.height = source.height;
             m_positions[i].push_back(currPos);
 
             // for now, just pick one w and h
-            m_height = processor->getHeight(i);
-            m_width = processor->getWidth(i);
+            m_height = source.width;
+            m_width = source.height;
         }
         processor->clearPositionUpdated();
         repaint();
     }
-    if (processor->getIsRecording()){
-        if (!processor->getClearTracking())
-        {
-            processor->setClearTracking(true);
-            clear();
-        }
-    }
+    // if (processor->getIsRecording()){
+    //     if (!processor->getClearTracking())
+    //     {
+    //         processor->setClearTracking(true);
+    //         clear();
+    //     }
+    // }
 }
 
 void TrackingVisualizerCanvas::beginAnimation()

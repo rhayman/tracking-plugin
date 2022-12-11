@@ -1,212 +1,147 @@
 /*
-    ------------------------------------------------------------------
+------------------------------------------------------------------
 
-    This file is part of the Tracking plugin for the Open Ephys GUI
-    Written by:
+This file is part of the Open Ephys GUI
+Copyright (C) 2022 Open Ephys
 
-    Alessio Buccino     alessiob@ifi.uio.no
-    Mikkel Lepperod
-    Svenn-Arne Dragly
+------------------------------------------------------------------
 
-    Center for Integrated Neuroplasticity CINPLA
-    Department of Biosciences
-    University of Oslo
-    Norway
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    ------------------------------------------------------------------
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#include <vector>
 #include "TrackingNodeEditor.h"
 #include "TrackingNode.h"
+#include "TrackingVisualizerCanvas.h"
 
-TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode, bool useDefaultParameterEditors = true)
-    : GenericEditor (parentNode, useDefaultParameterEditors)
-    , selectedSource(0)
+TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
+    : VisualizerEditor(parentNode, "Tracking"),
+      selectedSource(-1)
 {
-    desiredWidth = 220;
+    desiredWidth = 250;
 
-    TrackingNode* processor = (TrackingNode*) getProcessor();
+    sourceLabel = std::make_unique<Label>("Source Label", "SOURCE");
+    sourceLabel->setFont(Font("Silkscreen", "Bold", 12.0f));
+    sourceLabel->setColour(Label::textColourId, Colours::darkgrey);
+    sourceLabel->setBounds(65, 24, 60, 20);
+    addAndMakeVisible(sourceLabel.get());
 
-	color_palette.add("red");
-	color_palette.add("green");
-	color_palette.add("blue");
-	color_palette.add("magenta");
-	color_palette.add("cyan");
-	color_palette.add("orange");
-	color_palette.add("pink");
-	color_palette.add("grey");
-	color_palette.add("violet");
-	color_palette.add("yellow");
+    trackingSourceSelector = std::make_unique<ComboBox>("Tracking Sources");
+    trackingSourceSelector->setBounds(55, 45, 90, 20);
+    trackingSourceSelector->addListener(this);
+    addAndMakeVisible(trackingSourceSelector.get());
 
-    sourceSelector = new ComboBox();
-    sourceSelector->setBounds(45,30,130,20);
-    sourceSelector->addListener(this);
-    addAndMakeVisible(sourceSelector);
-
-    plusButton = new UtilityButton("+", titleFont);
+    plusButton = std::make_unique<UtilityButton>("+", titleFont);
     plusButton->addListener(this);
     plusButton->setRadius(3.0f);
-    plusButton->setBounds(10,30,20,20);
-    addAndMakeVisible(plusButton);
+    plusButton->setBounds(30, 45, 20, 20);
+    addAndMakeVisible(plusButton.get());
 
-    minusButton = new UtilityButton("-", titleFont);
+    minusButton = std::make_unique<UtilityButton>("-", titleFont);
     minusButton->addListener(this);
     minusButton->setRadius(3.0f);
-    minusButton->setBounds(190,30,20,20);
-    addAndMakeVisible(minusButton);
+    minusButton->setBounds(5, 45, 20, 20);
+    addAndMakeVisible(minusButton.get());
 
-    portLabel = new Label ("Port", "Port:");
-    portLabel->setBounds (10, 55, 140, 25);
-    addAndMakeVisible (portLabel);
-    int defaultPort = 27020;
-    labelPort = new Label ("Port", String (defaultPort));
-    labelPort->setBounds (80, 60, 80, 18);
-    labelPort->setFont (Font ("Default", 15, Font::plain));
-    labelPort->setColour (Label::textColourId, Colours::white);
-    labelPort->setColour (Label::backgroundColourId, Colours::grey);
-    labelPort->setEditable (true);
-    labelPort->addListener (this);
-    addAndMakeVisible (labelPort);
-
-    adrLabel = new Label ("Address", "Address:");
-    adrLabel->setBounds (10, 80, 140, 25);
-    addAndMakeVisible (adrLabel);
-    DBG ("in editor set default address");
-    String defaultAddress = "/red";
-    labelAdr = new Label ("Address", defaultAddress);
-    labelAdr->setBounds (80, 85, 80, 18);
-    labelAdr->setFont (Font ("Default", 15, Font::plain));
-    labelAdr->setColour (Label::textColourId, Colours::white);
-    labelAdr->setColour (Label::backgroundColourId, Colours::grey);
-    labelAdr->setEditable (true);
-    labelAdr->addListener (this);
-    addAndMakeVisible (labelAdr);
-
-    colorLabel = new Label ("Color", "Color:");
-    colorLabel->setBounds (10, 105, 140, 25);
-    addAndMakeVisible (colorLabel);
-
-    colorSelector = new ComboBox();
-    colorSelector->setBounds(80, 110, 80, 18);
-    colorSelector->addListener(this);
-
-    for (int i = 0; i < MAX_SOURCES; i++)
-        colorSelector->addItem(color_palette[i], i+1);
-    colorSelector->setSelectedId(1, dontSendNotification);
-    addAndMakeVisible(colorSelector);
+    addTextBoxParameterEditor("Address", 160, 75);
+    addTextBoxParameterEditor("Port", 160, 25);
+    addComboBoxParameterEditor("Color", 30, 75);
 }
 
-TrackingNodeEditor::~TrackingNodeEditor()
+Visualizer* TrackingNodeEditor::createNewCanvas()
 {
+    TrackingNode* processor = (TrackingNode*) getProcessor();
+    return new TrackingVisualizerCanvas(processor);
 }
 
-void TrackingNodeEditor::labelTextChanged (Label* label)
+void TrackingNodeEditor::buttonClicked(Button *btn)
 {
-    int selectedSource = sourceSelector->getSelectedId() - 1;
-    TrackingNode* p = (TrackingNode*) getProcessor();
-
-    if (label == labelAdr)
+    if (btn == plusButton.get())
     {
-        Value val = label->getTextValue();
-        p->setAddress (selectedSource, val.getValue());
-        p->setColor(selectedSource, color_palette[colorSelector->getSelectedId()-1]);
+        // add a tracking source
+        TrackingNode *processor = (TrackingNode *)getProcessor();
+        int newId = 1;
+        if (trackingSourceSelector->getNumItems() > 0)
+        {
+            newId = trackingSourceSelector->getItemId(trackingSourceSelector->getNumItems() - 1) + 1;
+        }
+        
+        String txt = "Tracking source " + String(newId);
+        
+        processor->addSource(txt);
+
+        trackingSourceSelector->addItem(txt, newId);
+        trackingSourceSelector->setSelectedId(newId, dontSendNotification);
+        selectedSource = newId - 1;
+
+    }
+    if (btn == minusButton.get())
+    {
+        TrackingNode *processor = (TrackingNode *)getProcessor();
+
+        processor->removeSource(selectedSource);
+
+        if (selectedSource >= processor->getNumSources())
+            selectedSource = processor->getNumSources() - 1;
+        
+        trackingSourceSelector->clear();
+        for(int i = 0; i < processor->getNumSources(); i++)
+            trackingSourceSelector->addItem("Tracking source " + String(i+1), i+1);
+
     }
 
-    if (label == labelPort)
-    {
-        Value val = label->getTextValue();
-        p->setPort (selectedSource, val.getValue());
-        p->setColor(selectedSource, color_palette[colorSelector->getSelectedId()-1]);
-    }
-    updateSettings();
+    updateCustomView();
+
+    if(canvas)
+        canvas->update();
 }
 
 void TrackingNodeEditor::comboBoxChanged(ComboBox* c)
 {
-    if (c == sourceSelector)
+    if (c == trackingSourceSelector.get())
     {
         selectedSource = c->getSelectedId() - 1;
-        updateLabels();
-    }
-    else if (c == colorSelector)
-    {
-        TrackingNode* p = (TrackingNode*) getProcessor();
-        String color = color_palette[c->getSelectedId() - 1];
-        p->setColor (selectedSource, color);
+        updateCustomView();
     }
 }
 
-void TrackingNodeEditor::updateLabels()
+void TrackingNodeEditor::updateCustomView()
 {
-    if (selectedSource < 0) {
-        return;
-    }
-    TrackingNode* p = (TrackingNode*) getProcessor();
-    labelAdr->setText(p->getAddress(selectedSource), dontSendNotification);
-    labelPort->setText(String(p->getPort(selectedSource)), dontSendNotification);
+    TrackingNode *processor = (TrackingNode *)getProcessor();
 
-    for (int i=0; i < MAX_SOURCES; i++)
-    {
-        if (color_palette[i].compare(p->getColor(selectedSource))==0)
-            colorSelector->setSelectedId(i+1);
-    }
-}
+    auto portParam = processor->getParameter("Port");
+    int port = processor->getPort(selectedSource);
 
-void TrackingNodeEditor::buttonEvent(Button* button)
-{
-    TrackingNode* p = (TrackingNode*) getProcessor();
-    if (button == plusButton && p->getNSources() < MAX_SOURCES)
-        addTrackingSource();
-    else if (button == minusButton && p->getNSources() > 1)
-        removeTrackingSource();
-    else
-        CoreServices::sendStatusMessage("Number of sources must be between 1 and 10!");
-    CoreServices::updateSignalChain(this);
-}
+    if(port == 0)
+        port = DEF_PORT;
 
-void TrackingNodeEditor::addTrackingSource()
-{
-    std::cout << "Adding source" << std::endl;
-    TrackingNode* p = (TrackingNode*) getProcessor();
+    portParam->currentValue = port;
 
-    p->addSource();
-    updateSettings();
-    sourceSelector->setSelectedId(sourceSelector->getNumItems());
-    selectedSource = sourceSelector->getSelectedId() - 1;
-}
+    auto addressParam = processor->getParameter("Address");
+    String addr = processor->getAddress(selectedSource);
 
-void TrackingNodeEditor::removeTrackingSource()
-{
-    std::cout << "Removing source" << std::endl;
-    TrackingNode* p = (TrackingNode*) getProcessor();
+    if(addr.isEmpty())
+        addr = DEF_ADDRESS;
 
-    p->removeSource(selectedSource);
-    if (selectedSource >= p->getNSources())
-        selectedSource = p->getNSources() - 1;
-    updateSettings();
-}
+    addressParam->currentValue = addr;
 
-void TrackingNodeEditor::updateSettings()
-{
-    TrackingNode* p = (TrackingNode*) getProcessor();
-    sourceSelector->clear();
+    auto colorParam = processor->getParameter("Color");
+    String color = processor->getColor(selectedSource);
+    
+    if(color.isEmpty())
+        color = DEF_COLOR;
 
-    for (int i = 0; i < p->getNSources(); i++)
-        sourceSelector->addItem("Tracking source " + String(i+1), i+1);
+    colorParam->currentValue = colors.indexOf(color);
 
-    sourceSelector->setSelectedId(selectedSource+1);
-    updateLabels();
+    updateView();
 }
