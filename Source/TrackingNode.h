@@ -35,12 +35,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <queue>
 #include <utility>
+#include <random>
 
 #define BUFFER_SIZE 4096
 #define MAX_SOURCES 10
 #define DEF_PORT 27020
 #define DEF_ADDRESS "/red"
 #define DEF_COLOR "red"
+
+// Tracking Stimulation defines
+#define DEF_FREQ 2
+#define DEF_SD 0.5
+#define DEF_DUR 50
+#define TRACKING_FREQ 20
+#define MAX_CIRCLES 9
 
 inline StringArray colors = {"red",
 							 "green",
@@ -53,40 +61,12 @@ inline StringArray colors = {"red",
 							 "violet",
 							 "yellow"};
 
-// auto const desc_name = std::make_unique<MetadataDescriptor>(
-// 	MetadataDescriptor::MetadataType::CHAR,
-// 	64,
-// 	"Source name",
-// 	"Tracking source name",
-// 	"external.tracking.name");
-
-// auto const desc_port = std::make_unique<MetadataDescriptor>(
-// 	MetadataDescriptor::MetadataType::CHAR,
-// 	16,
-// 	"Source port",
-// 	"Tracking source port",
-// 	"external.tracking.port");
-
-// auto const desc_address = std::make_unique<MetadataDescriptor>(
-// 	MetadataDescriptor::MetadataType::CHAR,
-// 	16,
-// 	"Source address",
-// 	"Tracking source address",
-// 	"external.tracking.address");
-
-// auto const desc_position = std::make_unique<MetadataDescriptor>(
-// 	MetadataDescriptor::MetadataType::FLOAT,
-// 	4,
-// 	"Source position",
-// 	"Tracking  position",
-// 	"external.tracking.position");
-
-// auto const desc_color = std::make_unique<MetadataDescriptor>(
-// 	MetadataDescriptor::MetadataType::CHAR,
-// 	16,
-// 	"Source color",
-// 	"Tracking source color",
-// 	"external.tracking.color");
+typedef enum
+{
+	uniform,
+	gauss,
+	ttl
+} stim_mode;
 
 //	This helper class allows stores input tracking data in a circular queue.
 class TrackingQueue
@@ -153,6 +133,7 @@ public:
 		source.y_pos = -1;
 		source.width = -1;
 		source.height = -1;
+		source.positionInsideACircle = false;
 		m_messageQueue = std::make_unique<TrackingQueue>();
 		m_server = std::make_unique<TrackingServer>(port, address, processor);
 		// m_server->addProcessor(processor);
@@ -171,63 +152,87 @@ public:
 	std::unique_ptr<TrackingQueue> m_messageQueue;
 	std::unique_ptr<TrackingServer> m_server;
 
-	EventChannel *eventChannel;
-
 	TrackingSources source;
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingModule);
 };
 
-// class TrackingNodeSettings
-// {
-// private:
-// public:
-// 	TrackingNodeSettings()
-// 	{
-// 		meta_position = std::make_unique<MetadataValue>(*desc_position);
-// 	};
-// 	TTLEventPtr createEvent(int idx, int64 sample_number);
 
-// 	std::unique_ptr<MetadataValue> meta_position;
-// 	OwnedArray<TrackingModule> trackers;
-// 	bool removeTracker(const String & moduleToRemove);
-// 	int getPort(int idx) { return trackers[idx]->m_port.getIntValue(); }
-// 	String getName(int idx) { return trackers[idx]->m_name; }
-// 	String getAddress(int idx) { return trackers[idx]->m_address; }
-// 	void updateTracker(int idx, Parameter *param, juce::var value);
-// 	void clearQueue(int idx) {
-// 		trackers[idx]->m_messageQueue->clear();
-// 	};
-// 	void pushMessage(int idx, TrackingData msg) {
-// 		trackers[idx]->m_messageQueue->push(msg);
-// 	}
-// };
+/**
+
+  Class for Abstrac Stimulation Area
+
+*/
+class StimArea
+{
+public:
+    StimArea();
+    StimArea(float x, float y, bool on);
+
+    float getX();
+    float getY();
+    bool getOn();
+    void setX(float x);
+    void setY(float y);
+
+    bool on();
+    bool off();
+
+    virtual bool isPositionIn(float x, float y) = 0;
+    virtual float distanceFromCenter(float x, float y) = 0;
+    virtual String returnType() = 0;
+
+protected:
+
+    float m_cx;
+    float m_cy;
+    bool m_on;
+
+};
+/**
+
+  Class for Stimulation Circles
+
+*/
+class StimCircle : public StimArea
+{
+public:
+    StimCircle();
+    StimCircle(float x, float y, float r, bool on);
+
+    float getRad();
+
+    void setRad(float rad);
+    void set(float x, float y, float rad, bool on);
+
+    bool isPositionIn(float x, float y);
+    float distanceFromCenter(float x, float y);
+    String returnType();
+
+private:
+    float m_rad;
+};
+
+
+/** Holds settings for one stream's event channel */
+class TrackingNodeSettings
+{
+public:
+    /** Constructor -- sets default values*/
+    TrackingNodeSettings() : 
+		eventChannelPtr(nullptr), turnoffEvent(nullptr) { }
+	
+	/** Destructor*/
+	~TrackingNodeSettings() { }
+
+    /** Parameters */
+    EventChannel* eventChannelPtr;
+    TTLEventPtr turnoffEvent; // holds a turnoff event that must be added in a later buffer
+};
+
 
 class TrackingNode : public GenericProcessor
 {
-private:
-	int64 m_startingRecTimeMillis;
-	int64 m_startingAcqTimeMillis;
-
-	CriticalSection lock;
-
-	bool m_positionIsUpdated;
-	bool m_isRecordingTimeLogged;
-	bool m_isAcquisitionTimeLogged;
-	bool m_isInitialized = false;
-	bool messageReceived;
-
-	// StreamSettings<TrackingNodeSettings> settings;
-
-	MetadataValueArray m_metadata;
-	MetadataValue* meta_position;
-	MetadataValue* meta_port;
-	MetadataValue* meta_name;
-	MetadataValue* meta_address;
-
-	OwnedArray<TrackingModule> trackers;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNode);
 
 public:
 	/** The class constructor, used to initialize any members. */
@@ -273,6 +278,8 @@ public:
 	// receives a message from the osc server
 	void receiveMessage(int port, String address, const TrackingData &message);
 
+	// Setter-Getters
+
 	int getPort(int idx);
 	void setPort (int idx, int port);
 
@@ -288,6 +295,97 @@ public:
 
     void clearPositionUpdated();
     bool positionIsUpdated() const;
+
+	void startStimulation();
+    void stopStimulation();
+
+    std::vector<StimCircle> getCircles();
+    void addCircle(StimCircle c);
+    void editCircle(int ind, float x, float y, float rad, bool on);
+    void deleteCircle(int ind);
+    void disableCircles();
+    // Circle setter can be done using Cicle class public methods
+    int getSelectedCircle() const;
+    void setSelectedCircle(int ind);
+
+    bool getSimulateTrajectory() const;
+	void setSimulateTrajectory(bool sim);
+
+    int getOutputChan() const;
+	void setOutputChan(int chan);
+
+	int getSelectedStimSource() const;
+	void setSelectedStimSource(int source);
+
+    float getStimFreq() const;
+	void setStimFreq(float stimFreq);
+
+    float getStimSD() const;
+	void setStimSD(float stimSD);
+
+    stim_mode getStimMode() const;
+	void setStimMode(stim_mode mode);
+
+    int getTTLDuration() const;
+    void setTTLDuration(int dur);
+
+    /** Returns the circle number if postion is whithin a circle */
+	int isPositionWithinCircles(float x, float y);
+
+private:
+	int64 m_startingRecTimeMillis;
+	int64 m_startingAcqTimeMillis;
+
+	CriticalSection lock;
+
+	bool m_positionIsUpdated;
+	bool m_isRecordingTimeLogged;
+	bool m_isAcquisitionTimeLogged;
+	bool m_isInitialized = false;
+	bool messageReceived;
+
+	// Stim ON/OFF
+	bool m_isOn;
+
+	// Time stim
+    float m_timePassed;
+    int64 m_previousTime;
+    int64 m_currentTime;
+    bool m_ttlTriggered;
+
+    std::default_random_engine generator;
+
+
+    // Time sim position
+    float m_timePassed_sim;
+    int64 m_previousTime_sim;
+    int64 m_currentTime_sim;
+    int m_count;
+    bool m_forward;
+    float m_rad;
+	bool m_simulateTrajectory;
+
+    std::vector<StimCircle> m_circles;
+    int m_selectedCircle;
+
+    // Stimulation params
+    float m_stimFreq;
+    float m_stimSD;
+    stim_mode m_stimMode;
+    int m_pulseDuration;
+
+    int m_outputChan; // Selected stimulation chan
+	int m_selectedStimSource; // Selected stimulation source
+
+	Array<TTLEventPtr> offEventPtrs;
+
+	StreamSettings<TrackingNodeSettings> settings;
+
+	OwnedArray<TrackingModule> trackers;
+
+	void triggerEvent();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNode);
 };
 
 #endif

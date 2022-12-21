@@ -51,6 +51,8 @@ private:
 	std::unique_ptr<UtilityButton> minusButton;
 	std::unique_ptr<Label> sourceLabel;
 	std::unique_ptr<ComboBox> trackingSourceSelector;
+	std::unique_ptr<Label> stimLabel;
+	std::unique_ptr<TextButton> stimulateButton;
 
 	int selectedSource;
 

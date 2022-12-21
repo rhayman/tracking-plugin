@@ -28,62 +28,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // preallocate memory for msg
 #define BUFFER_MSG_SIZE 256
 
-// bool TrackingNodeSettings::removeTracker(const String & moduleToRemove) {
-//     for (int i = 0; i < trackers.size(); ++i) {
-//         if (trackers[i]->m_name == moduleToRemove) {
-//             auto idx = trackers.indexOf(trackers[i]);
-//             trackers.remove(idx);
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-
-// void TrackingNodeSettings::updateTracker(int idx, Parameter * param, juce::var value) {
-//     if (param->getName().equalsIgnoreCase("Name"))
-//         trackers[idx]->m_name = value.toString();
-//     else if (param->getName().equalsIgnoreCase("Port"))
-//         trackers[idx]->m_port = value.toString();
-//     else if (param->getName().equalsIgnoreCase("Address"))
-//         trackers[idx]->m_address = value.toString();
-//     else if (param->getName().equalsIgnoreCase("Color"))
-//         trackers[idx]->m_color = value.toString();
-// }
-
-// TTLEventPtr TrackingNodeSettings::createEvent(int idx, int64 sample_number)
-// {
-//     auto position = trackers[idx]->m_messageQueue->pop();
-//     if (!position) {
-//         LOGC("position message NULL");
-//         return nullptr;
-//     }
-//     LOGC("got message");
-//     Array<float> pos;
-//     pos.add(position->position.x);
-//     pos.add(position->position.y);
-//     pos.add(position->position.height);
-//     pos.add(position->position.width);
-    
-//     MetadataValuePtr p_pos = new MetadataValue(*desc_position);
-//     MetadataValuePtr p_port = new MetadataValue(*desc_port);
-//     MetadataValuePtr p_addr = new MetadataValue(*desc_address);
-//     p_pos->setValue(pos);
-//     p_port->setValue(trackers[idx]->m_port);
-//     p_addr->setValue(trackers[idx]->m_address);
-//     MetadataValueArray metadata;
-//     metadata.add(p_pos);
-//     metadata.add(p_port);
-//     metadata.add(p_addr);
-//     LOGC("Creating TTL event");
-//     TTLEventPtr event = TTLEvent::createTTLEvent(trackers[idx]->eventChannel,
-//                                                  sample_number,
-//                                                  0,
-//                                                  true,
-//                                                  metadata);
-//     LOGC("Created TTL event");
-//     return event;
-// };
-
 std::ostream &
 operator<<(std::ostream &stream, const TrackingModule &module)
 {
@@ -92,8 +36,32 @@ operator<<(std::ostream &stream, const TrackingModule &module)
     return stream;
 }
 
+/** ------------- Tracking Node Processor --------------- */
+
 TrackingNode::TrackingNode()
     : GenericProcessor("Tracking Plugin")
+    , m_isOn(false)
+    , m_positionIsUpdated(false)
+    , m_simulateTrajectory(false)
+    , m_selectedCircle(-1)
+    , m_selectedStimSource(-1)
+    , m_timePassed(0.0)
+    , m_currentTime(0.0)
+    , m_previousTime(0.0)
+    , m_timePassed_sim(0.0)
+    , m_currentTime_sim(0.0)
+    , m_previousTime_sim(0.0)
+    , m_count(0)
+    , m_forward(true)
+    , m_rad(0.0)
+    , m_outputChan(0)
+    , m_pulseDuration(DEF_DUR)
+    , m_ttlTriggered(false)
+    , m_stimFreq(DEF_FREQ)
+    , m_stimSD(DEF_SD)
+    , messageReceived(false)
+    , m_isRecordingTimeLogged(false)
+    , m_isAcquisitionTimeLogged(false)
 {
     addIntParameter(Parameter::GLOBAL_SCOPE, "Port", "Tracking source OSC port", DEF_PORT, 1024, 49151);
 
@@ -103,10 +71,6 @@ TrackingNode::TrackingNode()
                             colors,
                             0);
 
-    m_positionIsUpdated = false;
-    messageReceived = false;
-    m_isRecordingTimeLogged = false;
-    m_isAcquisitionTimeLogged = false;
 }
 
 AudioProcessorEditor *TrackingNode::createEditor()
@@ -114,12 +78,6 @@ AudioProcessorEditor *TrackingNode::createEditor()
     editor = std::make_unique<TrackingNodeEditor>(this);
     return editor.get();
 }
-
-// void TrackingNode::initialize(bool signalChainIsLoading) {
-//     if ( getDataStreams().isEmpty() && !signalChainIsLoading ) {
-        
-//     }
-// }
 
 void TrackingNode::addSource(String srcName, int port, String address, String color)
 {
@@ -226,6 +184,7 @@ void TrackingNode::setPort (int i, int port)
 int TrackingNode::getPort(int i)
 {
 	if (i < 0 || i >= trackers.size()) {
+        LOGD("Invalid source index");
 		return 0;
 	}
 
@@ -236,6 +195,7 @@ void TrackingNode::setAddress (int i, String address)
 {
     if (i < 0 || i >= trackers.size ())
     {
+        LOGD("Invalid source index");
         return;
     }
 
@@ -245,7 +205,8 @@ void TrackingNode::setAddress (int i, String address)
 String TrackingNode::getAddress(int i)
 {
     if (i < 0 || i >= trackers.size ()) {
-		return String();
+		LOGD("Invalid source index");
+        return String();
     }
 
     return trackers[i]->m_address;
@@ -255,7 +216,8 @@ void TrackingNode::setColor (int i, String color)
 {
 	if (i < 0 || i >= trackers.size())
 	{
-		return;
+		LOGD("Invalid source index");
+        return;
 	}
 	trackers[i]->m_color = color;
 	trackers[i]->source.color = color;
@@ -264,10 +226,139 @@ void TrackingNode::setColor (int i, String color)
 String TrackingNode::getColor(int i)
 {
 	if (i < 0 || i >= trackers.size()) {
-		return String();
+		LOGD("Invalid source index");
+        return String();
 	}
     
     return trackers[i]->m_color;
+}
+
+void TrackingNode::startStimulation()
+{
+    m_isOn = true;
+}
+
+void TrackingNode::stopStimulation()
+{
+    m_isOn = false;
+}
+
+bool TrackingNode::getSimulateTrajectory() const
+{
+    return m_simulateTrajectory;
+}
+
+void TrackingNode::setSimulateTrajectory(bool sim)
+{
+    m_simulateTrajectory = sim;
+}
+
+std::vector<StimCircle> TrackingNode::getCircles()
+{
+    return m_circles;
+}
+
+void TrackingNode::addCircle(StimCircle c)
+{
+    m_circles.push_back(c);
+}
+
+void TrackingNode::editCircle(int ind, float x, float y, float rad, bool on)
+{
+    m_circles[ind].set(x,y,rad,on);
+}
+
+void TrackingNode::deleteCircle(int ind)
+{
+    if (m_circles.size())
+        m_circles.erase(m_circles.begin() + ind);
+}
+
+void TrackingNode::disableCircles()
+{
+    for(int i=0; i<m_circles.size(); i++)
+        m_circles[i].off();
+}
+
+int TrackingNode::getSelectedCircle() const
+{
+    return m_selectedCircle;
+}
+
+void TrackingNode::setSelectedCircle(int ind)
+{
+    m_selectedCircle = ind;
+}
+
+int TrackingNode::getSelectedStimSource() const
+{
+    return m_selectedStimSource;
+}
+
+void TrackingNode::setSelectedStimSource(int source)
+{
+    m_selectedStimSource = source;
+}
+
+int TrackingNode::getOutputChan() const
+{
+    return m_outputChan;
+}
+
+void TrackingNode::setOutputChan(int chan)
+{
+    m_outputChan = chan;
+}
+
+float TrackingNode::getStimFreq() const
+{
+    return m_stimFreq;
+}
+
+void TrackingNode::setStimFreq(float stimFreq)
+{
+    m_stimFreq = stimFreq;
+}
+
+float TrackingNode::getStimSD() const
+{
+    return m_stimSD;
+}
+
+void TrackingNode::setStimSD(float stimSD)
+{
+    m_stimSD = stimSD;
+}
+
+stim_mode TrackingNode::getStimMode() const
+{
+    return m_stimMode;
+}
+
+void TrackingNode::setStimMode(stim_mode mode)
+{
+    m_stimMode = mode;
+}
+
+int TrackingNode::getTTLDuration() const
+{
+    return m_pulseDuration;
+}
+
+void TrackingNode::setTTLDuration(int dur)
+{
+    m_pulseDuration = dur;
+}
+
+int TrackingNode::isPositionWithinCircles(float x, float y)
+{
+    int whichCircle = -1;
+    for (int i = 0; i < m_circles.size() && whichCircle == -1; i++)
+    {
+        if (m_circles[i].isPositionIn(x,y) && m_circles[i].getOn())
+            whichCircle = i;
+    }
+    return whichCircle;
 }
 
 
@@ -294,14 +385,88 @@ void TrackingNode::parameterValueChanged(Parameter *param)
 
 void TrackingNode::updateSettings()
 {
-    eventChannels.clear();
+    settings.update(getDataStreams());
+
+    for(auto stream : getDataStreams())
+    {        
+        EventChannel* ttlChan;
+        EventChannel::Settings ttlChanSettings{
+            EventChannel::Type::TTL,
+            "Tracking stimulation output",
+            "Triggers whenever the tracking postion enters a ROI",
+            "tracking.event",
+            getDataStream(stream->getStreamId())
+        };
+
+        ttlChan = new EventChannel(ttlChanSettings);
+
+        eventChannels.add(ttlChan);
+        eventChannels.getLast()->addProcessor(processorInfo.get());
+        settings[stream->getStreamId()]->eventChannelPtr = eventChannels.getLast();
+    }
 
     parameterValueChanged(getParameter("Port"));
     parameterValueChanged(getParameter("Address"));
 }
 
+void TrackingNode::triggerEvent()
+{   
+    for(auto stream : getDataStreams())
+    {     
+        int64 startSampleNum = getFirstSampleNumberForBlock(stream->getStreamId());
+        int nSamples = getNumSamplesInBlock(stream->getStreamId());
+        auto settingsModule = settings[stream->getStreamId()];
+
+        // Create and Send ON event
+        TTLEventPtr event = TTLEvent::createTTLEvent(settingsModule->eventChannelPtr, 
+                                                     startSampleNum,
+                                                     m_outputChan,
+                                                     true);
+        addEvent(event, 0);
+
+
+        // Create OFF event
+        int eventDurationSamp = static_cast<int>(ceil(m_pulseDuration / 1000.0f * stream->getSampleRate()));
+        TTLEventPtr eventOff = TTLEvent::createTTLEvent(settingsModule->eventChannelPtr,
+                                                        startSampleNum + eventDurationSamp,
+                                                        m_outputChan,
+                                                        false);
+
+        // Add or schedule turning-off event
+        // We don't care whether there are other turning-offs scheduled to occur either in
+        // this buffer or later. The abilities to change event duration during acquisition and for
+        // events to be longer than the timeout period create a lot of possibilities and edge cases,
+        // but overwriting turnoffEvent unconditionally guarantees that this and all previously
+        // turned-on events will be turned off by this "turning-off" if they're not already off.
+        if(eventDurationSamp < nSamples)
+            addEvent(eventOff, eventDurationSamp);
+        else
+            settingsModule->turnoffEvent = eventOff;
+    }
+}
+
 void TrackingNode::process(AudioBuffer<float> &buffer)
 {
+    // turn off event from previous buffer if necessary
+    for (auto stream : getDataStreams())
+    {
+        auto settingsModule = settings[stream->getStreamId()];
+
+        if(!settingsModule->turnoffEvent)
+            continue;
+
+        int startSampleNum = getFirstSampleNumberForBlock(stream->getStreamId());
+        int nSamples = getNumSamplesInBlock(settingsModule->turnoffEvent->getStreamId());
+        int turnoffOffset = jmax(0, (int)(settingsModule->turnoffEvent->getSampleNumber() - startSampleNum));
+
+        if(turnoffOffset < nSamples)
+        {
+            addEvent(settingsModule->turnoffEvent, turnoffOffset);
+            settingsModule->turnoffEvent = nullptr;
+        }
+    }
+
+    // Return if no message received
     if (!messageReceived)
     {
         return;
@@ -313,7 +478,7 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
     {
         auto *message = trackers[i]->m_messageQueue->pop();
         if (!message)
-            break;
+            continue;
         
         trackers[i]->source.x_pos = message->position.x;
         trackers[i]->source.y_pos = message->position.y;
@@ -322,6 +487,68 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
     }
 
     m_positionIsUpdated = true;
+
+    if (m_isOn && m_selectedStimSource != -1)
+    {
+
+        m_currentTime = Time::currentTimeMillis();
+        m_timePassed = float(m_currentTime - m_previousTime) / 1000.f; // in seconds
+
+        float xPos = trackers[m_selectedStimSource]->source.x_pos;
+        float yPos = trackers[m_selectedStimSource]->source.y_pos;
+
+        // Check if current position is within stimulation areas
+        int circleIn = isPositionWithinCircles(xPos, yPos);
+
+        if (circleIn != -1)
+        {
+            trackers[m_selectedStimSource]->source.positionInsideACircle = true;
+
+            // Check if timePassed >= latency
+            if (m_stimMode == ttl)
+            {
+                if (!m_ttlTriggered)
+                {
+                    triggerEvent();
+                    m_ttlTriggered = true;
+                }
+            }
+            else
+            {
+                float stim_interval;
+                if (m_stimMode == uniform)  {
+                    stim_interval = float(1.f / m_stimFreq);
+                }
+                else if (m_stimMode == gauss)                     //gaussian
+                {
+                    float dist_norm = m_circles[circleIn].distanceFromCenter(xPos, yPos) / m_circles[circleIn].getRad();
+                    float k = -1.0 / std::log(m_stimSD);
+                    float freq_gauss = m_stimFreq*std::exp(-pow(dist_norm,2)/k);
+                    stim_interval = float(1/freq_gauss);
+                }
+
+                float stimulationProbability = m_timePassed / stim_interval;
+                std::uniform_real_distribution<float> distribution(0.0, 1.0);
+                float randomNumber = distribution(generator);
+
+                if (stimulationProbability > 1)
+                    std::cout << "WARNING: The tracking stimulation frequency is higher than the sampling frequency." << std::endl;
+
+                if (randomNumber < stimulationProbability)
+                {
+                    triggerEvent();
+                }
+            }
+
+        }
+        else
+        {
+            trackers[m_selectedStimSource]->source.positionInsideACircle = false;
+            m_ttlTriggered = false;
+        }
+
+        m_previousTime = m_currentTime;
+    }
 
     lock.exit();
     messageReceived = false;
@@ -441,6 +668,7 @@ void TrackingNode::loadCustomParametersFromXml(XmlElement *xml)
     // }
 }
 
+
 // Class TrackingQueue methods
 TrackingQueue::TrackingQueue()
     : m_head(-1), m_tail(-1)
@@ -481,6 +709,7 @@ void TrackingQueue::clear()
 int TrackingQueue::count() {
     return _count;
 }
+
 
 // Class TrackingServer methods
 TrackingServer::TrackingServer()
@@ -578,4 +807,101 @@ void TrackingServer::stop()
     }
 
     m_listeningSocket->AsynchronousBreak();
+}
+
+
+// StimArea methods
+
+StimArea::StimArea() :
+    m_cx(0),
+    m_cy(0),
+    m_on(false)
+{
+}
+
+StimArea::StimArea(float x, float y, bool on) :
+    m_cx(x),
+    m_cy(y),
+    m_on(on)
+{
+}
+
+float StimArea::getX()
+{
+    return m_cx;
+}
+float StimArea::getY()
+{
+    return m_cy;
+}
+bool StimArea::getOn()
+{
+    return m_on;
+}
+
+void StimArea::setX(float x)
+{
+    m_cx = x;
+}
+void StimArea::setY(float y)
+{
+    m_cy = y;
+}
+
+bool StimArea::on()
+{
+    m_on = true;
+    return m_on;
+}
+bool StimArea::off()
+{
+    m_on = false;
+    return m_on;
+}
+
+// Circle methods
+
+StimCircle::StimCircle()
+    : m_rad(0), StimArea(0, 0, false)
+{
+}
+
+StimCircle::StimCircle(float x, float y, float rad, bool on) : StimArea(x, y, on)
+{
+    m_rad = rad;
+}
+
+float StimCircle::getRad()
+{
+    return m_rad;
+}
+
+void StimCircle::setRad(float rad)
+{
+    m_rad = rad;
+}
+void StimCircle::set(float x, float y, float rad, bool on)
+{
+    m_cx = x;
+    m_cy = y;
+    m_rad = rad;
+    m_on = on;
+}
+
+bool StimCircle::isPositionIn(float x, float y)
+{
+    if (pow(x - m_cx, 2) + pow(y - m_cy, 2)
+        <= m_rad * m_rad)
+        return true;
+    else
+        return false;
+}
+
+float StimCircle::distanceFromCenter(float x, float y) {
+    return sqrt(pow(x - m_cx, 2) + pow(y - m_cy, 2));
+}
+
+String StimCircle::returnType()
+{
+    return String("circle");
 }

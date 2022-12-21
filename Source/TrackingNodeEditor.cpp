@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include "TrackingNodeEditor.h"
 #include "TrackingNode.h"
-#include "TrackingVisualizerCanvas.h"
+#include "TrackingStimulatorCanvas.h"
 
 TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
     : VisualizerEditor(parentNode, "Tracking"),
@@ -33,43 +33,61 @@ TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
     sourceLabel = std::make_unique<Label>("Source Label", "SOURCE");
     sourceLabel->setFont(Font("Silkscreen", "Bold", 12.0f));
     sourceLabel->setColour(Label::textColourId, Colours::darkgrey);
-    sourceLabel->setBounds(65, 24, 60, 20);
+    sourceLabel->setBounds(35, 24, 60, 20);
     addAndMakeVisible(sourceLabel.get());
 
     trackingSourceSelector = std::make_unique<ComboBox>("Tracking Sources");
-    trackingSourceSelector->setBounds(55, 45, 90, 20);
+    trackingSourceSelector->setBounds(35, 45, 90, 20);
     trackingSourceSelector->addListener(this);
     addAndMakeVisible(trackingSourceSelector.get());
 
     plusButton = std::make_unique<UtilityButton>("+", titleFont);
     plusButton->addListener(this);
     plusButton->setRadius(3.0f);
-    plusButton->setBounds(30, 45, 20, 20);
+    plusButton->setBounds(130, 45, 20, 20);
     addAndMakeVisible(plusButton.get());
 
     minusButton = std::make_unique<UtilityButton>("-", titleFont);
     minusButton->addListener(this);
     minusButton->setRadius(3.0f);
-    minusButton->setBounds(5, 45, 20, 20);
+    minusButton->setBounds(10, 45, 20, 20);
     addAndMakeVisible(minusButton.get());
 
-    addTextBoxParameterEditor("Address", 160, 75);
-    addTextBoxParameterEditor("Port", 160, 25);
-    addComboBoxParameterEditor("Color", 30, 75);
+    addTextBoxParameterEditor("Address", 165, 75);
+    addTextBoxParameterEditor("Port", 165, 25);
+    addComboBoxParameterEditor("Color", 70, 75);
+
+     // Stimulate (toggle)
+    stimLabel = std::make_unique<Label>("Stim Label", "STIM");
+    stimLabel->setFont(Font("Silkscreen", "Bold", 12.0f));
+    stimLabel->setColour(Label::textColourId, Colours::darkgrey);
+    stimLabel->setBounds(15, 75, 40, 20);
+    addAndMakeVisible(stimLabel.get());
+
+    stimulateButton = std::make_unique<TextButton>("Stimulate Button");
+    stimulateButton->setBounds(15, 95, 40, 20);
+    stimulateButton->addListener(this);
+    stimulateButton->setClickingTogglesState(true); // makes the button toggle its state when clicked
+    stimulateButton->setButtonText("OFF");
+    stimulateButton->setColour(TextButton::buttonOnColourId, Colours::yellow);
+    // stimulateButton->setColour(TextButton::buttonColourId, Colours::grey);
+    stimulateButton->setToggleState(false, dontSendNotification);
+    addAndMakeVisible(stimulateButton.get()); // makes the button a child component of the editor and makes it visible
 }
 
 Visualizer* TrackingNodeEditor::createNewCanvas()
 {
     TrackingNode* processor = (TrackingNode*) getProcessor();
-    return new TrackingVisualizerCanvas(processor);
+    return new TrackingStimulatorCanvas(processor);
 }
 
 void TrackingNodeEditor::buttonClicked(Button *btn)
 {
+    TrackingNode *processor = (TrackingNode *)getProcessor();
+
     if (btn == plusButton.get())
     {
         // add a tracking source
-        TrackingNode *processor = (TrackingNode *)getProcessor();
         int newId = 1;
         if (trackingSourceSelector->getNumItems() > 0)
         {
@@ -84,11 +102,13 @@ void TrackingNodeEditor::buttonClicked(Button *btn)
         trackingSourceSelector->setSelectedId(newId, dontSendNotification);
         selectedSource = newId - 1;
 
-    }
-    if (btn == minusButton.get())
-    {
-        TrackingNode *processor = (TrackingNode *)getProcessor();
+        updateCustomView();
 
+        if(canvas)
+            canvas->update();
+    }
+    else if (btn == minusButton.get())
+    {
         processor->removeSource(selectedSource);
 
         if (selectedSource >= processor->getNumSources())
@@ -97,13 +117,26 @@ void TrackingNodeEditor::buttonClicked(Button *btn)
         trackingSourceSelector->clear();
         for(int i = 0; i < processor->getNumSources(); i++)
             trackingSourceSelector->addItem("Tracking source " + String(i+1), i+1);
+        
+        updateCustomView();
+
+        if(canvas)
+            canvas->update();
 
     }
-
-    updateCustomView();
-
-    if(canvas)
-        canvas->update();
+    else if (btn == stimulateButton.get())
+    {
+        if (stimulateButton->getToggleState()==true)
+        {
+            processor->startStimulation();
+            stimulateButton->setButtonText(String("ON"));
+        }
+        else
+        {
+            processor->stopStimulation();
+            stimulateButton->setButtonText(String("OFF"));
+        }
+    }
 }
 
 void TrackingNodeEditor::comboBoxChanged(ComboBox* c)

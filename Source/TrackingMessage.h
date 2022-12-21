@@ -63,6 +63,7 @@ struct TrackingSources
     float height;
     String name;
     String color;
+    bool positionInsideACircle;
     friend std::ostream &operator<<(std::ostream &stream, const TrackingSources &ts){
         stream << "name: " << ts.name << std::endl;
         stream << "Color: " << ts.color << std::endl;
