@@ -183,9 +183,6 @@ public:
 
 private:
 
-    double xlims[2];
-    double ylims[2];
-
     std::vector<TrackingPosition> m_positions[MAX_SOURCES];
 
     std::map<String, Colour> color_palette;

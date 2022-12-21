@@ -58,7 +58,6 @@ TrackingStimulatorCanvas::TrackingStimulatorCanvas(TrackingNode* node)
     
     displayAxes = new DisplayAxes(node, this);
 
-    // startCallbacks();
     update();
 }
 
@@ -864,17 +863,11 @@ DisplayAxes::DisplayAxes(TrackingNode* node, TrackingStimulatorCanvas* canvas_)
     , m_copy (false)
 
 {
-    xlims[0] = getBounds().getRight() - getWidth();
-    xlims[1] = getBounds().getRight();
-    ylims[0] = getBounds().getBottom() - getHeight();
-    ylims[1] = getBounds().getBottom();
-
     color_palette["red"] = Colours::red;
 	color_palette["green"] = Colours::green;
 	color_palette["blue"] = Colours::blue;
 	color_palette["cyan"] = Colours::cyan;
 	color_palette["magenta"] = Colours::magenta;
-	color_palette["yellow"] = Colours::yellow;
 	color_palette["orange"] = Colours::orange;
 	color_palette["pink"] = Colours::pink;
 	color_palette["grey"] = Colours::grey;
@@ -892,12 +885,8 @@ void DisplayAxes::addPosition(int index, TrackingPosition& postionData)
 }
 
 
-void DisplayAxes::paint(Graphics& g){
-
-    xlims[0] = getX();
-    xlims[1] = getBounds().getRight();
-    ylims[0] = getY();
-    ylims[1] = getBounds().getBottom();
+void DisplayAxes::paint(Graphics& g)
+{
 
     g.setColour(Colour(0, 18, 43)); //background color
     g.fillAll();
@@ -914,8 +903,8 @@ void DisplayAxes::paint(Graphics& g){
             cur_rad = processor->getCircles()[i].getRad();
 
 
-            x_c = int(cur_x * getWidth() + xlims[0]);
-            y_c = int(cur_y * getHeight() + ylims[0]);
+            x_c = int(cur_x * getWidth());
+            y_c = int(cur_y * getHeight());
 
             radx = int(cur_rad * getWidth());
             rady = int(cur_rad * getHeight());
@@ -974,10 +963,10 @@ void DisplayAxes::paint(Graphics& g){
                 // if tracking data are empty positions are set to -1
                 if (prev_position.x != -1 && prev_position.y != -1)
                 {
-                    float x = getWidth()*position.x + xlims[0];
-                    float y = getHeight()*position.y + ylims[0];
-                    float x_prev = getWidth()*prev_position.x + xlims[0];
-                    float y_prev = getHeight()*prev_position.y + ylims[0];
+                    float x = getWidth()*position.x;
+                    float y = getHeight()*position.y;
+                    float x_prev = getWidth()*prev_position.x;
+                    float y_prev = getHeight()*prev_position.y;
                     g.drawLine(x_prev, y_prev, x, y, 5.0f);
                 }
             }
@@ -985,64 +974,13 @@ void DisplayAxes::paint(Graphics& g){
             if (!m_positions[selectedSource].empty ())
             {
                 TrackingPosition position = m_positions[selectedSource].back();
-                float x = getWidth()*position.x + xlims[0];
-                float y = getHeight()*position.y + ylims[0];
-
-                if(source.positionInsideACircle)
-                    g.setColour(source_colour.brighter());
-                else
-                    g.setColour(source_colour.darker());
+                float x = getWidth()*position.x;
+                float y = getHeight()*position.y;
 
                 g.fillEllipse(x - 0.01*getHeight(), y - 0.01*getHeight(), 0.02*getHeight(), 0.02*getHeight());
             }
         }
     }
-
-    // // Draw a point for the current position
-    // // if inside circle display in RED
-    // if (processor->getSimulateTrajectory())
-    // {
-    //     float pos_x = processor->getSimX();
-    //     float pos_y = processor->getSimY();
-
-    //     if ((pos_x >= 0 && pos_x <= 1) && (pos_y >= 0 && pos_y <= 1))
-    //     {
-    //         int x, y;
-
-    //         x = int(pos_x * getWidth() + xlims[0]);
-    //         y = int(pos_y * getHeight() + ylims[0]);
-
-    //         int circleIn = processor->isPositionWithinCircles(pos_x, pos_y);
-
-    //         if (circleIn != -1 && processor->getCircles()[circleIn].getOn())
-    //             g.setColour(inOfCirclesColour);
-    //         else
-    //             g.setColour(outOfCirclesColour);
-    //         g.fillEllipse(x, y, 0.02*getHeight(), 0.02*getHeight());
-    //     }
-    // }
-    // else if (canvas->getSelectedSource() != -1)
-    // {
-    //     float pos_x = processor->getX(canvas->getSelectedSource());
-    //     float pos_y = processor->getY(canvas->getSelectedSource());
-
-    //     if ((pos_x >= 0 && pos_x <= 1) && (pos_y >= 0 && pos_y <= 1))
-    //     {
-    //         int x, y;
-
-    //         x = int(pos_x * getWidth() + xlims[0]);
-    //         y = int(pos_y * getHeight() + ylims[0]);
-
-    //         int circleIn = processor->isPositionWithinCircles(pos_x, pos_y);
-
-    //         if (circleIn != -1 && processor->getCircles()[circleIn].getOn())
-    //             g.setColour(inOfCirclesColour);
-    //         else
-    //             g.setColour(outOfCirclesColour);
-    //         g.fillEllipse(x, y, 0.02*getHeight(), 0.02*getHeight());
-    //     }
-    // }
-
 
     // Draw moving, creating, copying or resizing circle
     if (m_creatingNewCircle || m_movingCircle || m_resizing || m_copy)
@@ -1050,8 +988,8 @@ void DisplayAxes::paint(Graphics& g){
         // draw circle increasing in size
         int x_c, y_c, x, y, radx, rady;
 
-        x_c = int(m_newX * getWidth() + xlims[0]);
-        y_c = int(m_newY * getHeight() + ylims[0]);
+        x_c = int(m_newX * getWidth());
+        y_c = int(m_newY * getHeight());
         radx = int(m_tempRad * getWidth());
         rady = int(m_tempRad * getHeight());
         // center ellipse
