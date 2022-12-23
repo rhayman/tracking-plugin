@@ -53,8 +53,6 @@ public:
     TrackingStimulatorCanvas(TrackingNode* TrackingNode);
     ~TrackingStimulatorCanvas();
 
-    friend class DisplayAxes;
-
     void paint (Graphics&);
     void resized();
     void clear();
@@ -78,6 +76,7 @@ public:
 
 
     void createCircle(float xVal, float yVal, float rad);
+    void selectCircle(int circle);
     void editSelectedCircle(float xVal, float yVal, float rad);
     bool getUpdateCircle();
     void setUpdateCircle(bool onoff);
@@ -111,10 +110,7 @@ private:
     Colour labelTextColour;
     Colour labelBackgroundColour;
 
-
-
     ScopedPointer<DisplayAxes> displayAxes;
-    // *** Maybe adjust with proper accessors instead of keep public *** //
     ScopedPointer<UtilityButton> clearButton;
     ScopedPointer<UtilityButton> newButton;
     ScopedPointer<UtilityButton> editButton;

@@ -565,7 +565,7 @@ void TrackingStimulatorCanvas::buttonClicked(Button* button)
             processor->setStimMode(ttl);
         }
     }
-    else
+    else if(button->getRadioGroupId() == 101)
     {
         // check if one of circle button has been clicked
         bool someToggled = false;
@@ -741,6 +741,12 @@ void TrackingStimulatorCanvas::createCircle(float cx, float cy, float rad)
     }
     else
         CoreServices::sendStatusMessage("Max number of circles reached!");
+}
+
+void TrackingStimulatorCanvas::selectCircle(int circleIdx)
+{
+    if (!circlesButton[circleIdx]->getToggleState())
+        circlesButton[circleIdx]->triggerClick();
 }
 
 void TrackingStimulatorCanvas::editSelectedCircle(float cx, float cy, float rad)
@@ -1099,8 +1105,7 @@ void DisplayAxes::mouseDown(const MouseEvent& event)
         // If on a circle -> select circle!
         if (circleIn != -1)
         {
-            if (canvas->circlesButton[circleIn]->getToggleState() != true)
-                canvas->circlesButton[circleIn]->triggerClick();
+            canvas->selectCircle(circleIn);
             m_creatingNewCircle = false;
             m_newX = float(event.x)/float(getWidth());
             m_newY = float(event.y)/float(getHeight());
