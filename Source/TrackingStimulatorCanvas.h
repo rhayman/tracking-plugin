@@ -77,6 +77,8 @@ public:
     void endAnimation() override;
 
 
+    void createCircle(float xVal, float yVal, float rad);
+    void editSelectedCircle(float xVal, float yVal, float rad);
     bool getUpdateCircle();
     void setUpdateCircle(bool onoff);
     bool areThereCicles();
@@ -99,25 +101,25 @@ private:
     bool m_updateCircle;
     bool m_isDeleting;
 
+    int settingsWidth;
+    int settingsHeight;
+
     int selectedSource;
     int outputChan;
 
-    Colour buttonTextColour;
-    Colour labelColour;
+    Font labelFont;
     Colour labelTextColour;
     Colour labelBackgroundColour;
+
+
 
     ScopedPointer<DisplayAxes> displayAxes;
     // *** Maybe adjust with proper accessors instead of keep public *** //
     ScopedPointer<UtilityButton> clearButton;
-    ScopedPointer<UtilityButton> saveButton;
-    ScopedPointer<UtilityButton> saveAsButton;
-    ScopedPointer<UtilityButton> loadButton;
     ScopedPointer<UtilityButton> newButton;
     ScopedPointer<UtilityButton> editButton;
     ScopedPointer<UtilityButton> delButton;
-    ScopedPointer<UtilityButton> onButton;
-    ScopedPointer<UtilityButton> newcircButton;
+    ScopedPointer<TextButton> onButton;
     ScopedPointer<UtilityButton> circlesButton[MAX_CIRCLES];
     ScopedPointer<UtilityButton> uniformButton;
     ScopedPointer<UtilityButton> gaussianButton;
@@ -133,25 +135,64 @@ private:
     ScopedPointer<Label> outputLabel;
     ScopedPointer<Label> circlesLabel;
     ScopedPointer<Label> paramLabel;
-    ScopedPointer<Label> controlLabel;
-    ScopedPointer<Label> cxLabel;
-    ScopedPointer<Label> cyLabel;
-    ScopedPointer<Label> cradLabel;
     ScopedPointer<Label> onLabel;
     ScopedPointer<Label> fmaxLabel;
     ScopedPointer<Label> sdevLabel;
     ScopedPointer<Label> durationLabel;
 
-    // Labels with editable test
-    ScopedPointer<Label> cxEditLabel;
-    ScopedPointer<Label> cyEditLabel;
-    ScopedPointer<Label> cradEditLabel;
     ScopedPointer<Label> fmaxEditLabel;
     ScopedPointer<Label> sdevEditLabel;
     ScopedPointer<Label> durationEditLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingStimulatorCanvas);
 };
+
+
+/**
+
+  User interface for the creating and editing circles.
+
+  Allows the user to create and edit circles by sepcifying 
+  the x, y, and radius values.
+
+  @see TrackingStimulatorCanvas
+
+*/
+class CircleEditor : public Component
+{
+public:
+    CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode, float cx, float cy, float cRad);
+
+    ~CircleEditor() {}
+
+private:
+
+    std::unique_ptr<Slider> cxSlider;
+    std::unique_ptr<Slider> cySlider;
+    std::unique_ptr<Slider> cradSlider;
+
+    std::unique_ptr<Label> cxLabel;
+    std::unique_ptr<Label> cyLabel;
+    std::unique_ptr<Label> cradLabel;
+
+    std::unique_ptr<TextButton> createButton;
+
+    float xVal;
+    float yVal;
+    float radius;
+
+    bool isEditMode;
+
+    TrackingStimulatorCanvas *canvas;
+
+    void updateCircleParams();
+
+    void createNewCircle();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CircleEditor);
+
+};
+
 
 /**
 
@@ -208,6 +249,8 @@ private:
     float m_tempRad;
 
     MouseCursor::StandardCursorType cursorType;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DisplayAxes);
 
 };
 
