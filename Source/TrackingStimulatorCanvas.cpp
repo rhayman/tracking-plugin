@@ -92,7 +92,7 @@ void TrackingStimulatorCanvas::initButtons()
     editButton->addListener(this);
     addAndMakeVisible(editButton);
 
-    delButton = new UtilityButton("Del", Font("Small Text", 13, Font::plain));
+    delButton = new UtilityButton("Delete", Font("Small Text", 13, Font::plain));
     delButton->setRadius(3.0f);
     delButton->addListener(this);
     addAndMakeVisible(delButton);
@@ -487,25 +487,41 @@ void TrackingStimulatorCanvas::buttonClicked(Button* button)
     }
     else if (button == delButton)
     {
-        m_updateCircle = true;
-
-        processor->deleteCircle(processor->getSelectedCircle());
-
-        // Blank labels and untoggle all circle buttons
-        processor->setSelectedCircle(-1);
-        m_onoff = false;
-
-        for (int i = 0; i<MAX_CIRCLES; i++)
-            //            circlesButton[i]->setEnabledState(false);
-            circlesButton[i]->setToggleState(false, true);
-        
-        // make visible only the remaining labels
-        for (int i = 0; i<MAX_CIRCLES; i++)
+        if(processor->getSelectedCircle() >= 0)
         {
-            if (i<processor->getCircles().size())
-                circlesButton[i]->setVisible(true);
-            else
-                circlesButton[i]->setVisible(false);
+            m_updateCircle = true;
+
+            processor->deleteCircle(processor->getSelectedCircle());
+
+            // Blank labels and untoggle all circle buttons
+            processor->setSelectedCircle(-1);
+            m_onoff = false;
+
+            for (int i = 0; i<MAX_CIRCLES; i++)
+                circlesButton[i]->setToggleState(false, dontSendNotification);
+            
+            // make visible only the remaining labels
+            for (int i = 0; i<MAX_CIRCLES; i++)
+            {
+                if (i<processor->getCircles().size())
+                    circlesButton[i]->setVisible(true);
+                else
+                    circlesButton[i]->setVisible(false);
+            }
+        }
+        else
+        {
+            Label* warningLabel = new Label("warning", "Please select a circle first!");
+            warningLabel->setSize(130, 60);
+            warningLabel->setColour(Label::textColourId, Colours::white);
+            warningLabel->setJustificationType(Justification::centred);
+
+            CallOutBox& myBox = CallOutBox::launchAsynchronously (
+                                    std::unique_ptr<Component>(warningLabel), 
+                                    button->getScreenBounds(), 
+                                    nullptr);
+            
+            myBox.setDismissalMouseClicksAreAlwaysConsumed(true);
         }
 
     }
