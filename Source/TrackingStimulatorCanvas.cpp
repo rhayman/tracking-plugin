@@ -965,19 +965,21 @@ void DisplayAxes::paint(Graphics& g)
                     g.setColour(Colours::white);
                     g.drawEllipse(x, y, 2*radx, 2*rady, 3.0f);
 
+                    // Display circle number
                     g.setColour(Colours::white);
                     g.setFont(18.0f);
                     g.drawRect(x_c - 10, y_c - 10, 20, 20, 2);
-                    g.drawFittedText(String(i), x_c - 10, y_c - 10, 20, 20, Justification::centred, 1);
+                    g.drawFittedText(String(i+1), x_c - 10, y_c - 10, 20, 20, Justification::centred, 1);
                 }
             }
             else
             {
                 g.fillEllipse(x, y, 2*radx, 2*rady);
 
+                // Display circle number
                 g.setColour(Colours::white);
                 g.setFont(18.0f);
-                g.drawFittedText(String(i), x_c - 10, y_c - 10, 20, 20, Justification::centred, 1);
+                g.drawFittedText(String(i+1), x_c - 10, y_c - 10, 20, 20, Justification::centred, 1);
             }
         }
     }
