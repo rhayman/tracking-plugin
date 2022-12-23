@@ -867,6 +867,8 @@ void CircleEditor::createNewCircle()
     radius = cradSlider->getValue() / 100;
 
     canvas->createCircle(xVal, yVal, radius);
+
+    findParentComponentOfClass<CallOutBox>()->exitModalState(0);
 }
 
 
