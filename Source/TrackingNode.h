@@ -50,16 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define TRACKING_FREQ 20
 #define MAX_CIRCLES 9
 
-inline StringArray colors = {"red",
-							 "green",
-							 "blue",
-							 "magenta",
-							 "cyan",
-							 "orange",
-							 "pink",
-							 "grey",
-							 "violet",
-							 "yellow"};
+
 
 typedef enum
 {
@@ -331,6 +322,17 @@ public:
 
     /** Returns the circle number if postion is whithin a circle */
 	int isPositionWithinCircles(float x, float y);
+	
+	StringArray colors = { "red",
+							 "green",
+							 "blue",
+							 "magenta",
+							 "cyan",
+							 "orange",
+							 "pink",
+							 "grey",
+							 "violet",
+							 "yellow" };
 
 private:
 	int64 m_startingRecTimeMillis;
@@ -354,6 +356,7 @@ private:
     bool m_ttlTriggered;
 
     std::default_random_engine generator;
+
 
 
     // Time sim position

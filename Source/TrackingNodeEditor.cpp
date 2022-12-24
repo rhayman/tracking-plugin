@@ -174,7 +174,7 @@ void TrackingNodeEditor::updateCustomView()
     if(color.isEmpty())
         color = DEF_COLOR;
 
-    colorParam->currentValue = colors.indexOf(color);
+    colorParam->currentValue = processor->colors.indexOf(color);
 
     updateView();
 }
