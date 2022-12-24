@@ -41,10 +41,11 @@ TrackingStimulatorCanvas::TrackingStimulatorCanvas(TrackingNode* node)
     , m_updateCircle(true)
     , m_onoff(false)
     , m_isDeleting(true)
+    , settingsWidth(250)
+    , settingsHeight(500)
     , selectedSource(-1)
     , outputChan(0)
-    , buttonTextColour(Colour(255,255,255))
-    , labelColour(Colour(200, 255, 0))
+    , labelFont("Fira Sans", "SemiBold", 20.0f)
     , labelTextColour(Colour(255, 200, 0))
     , labelBackgroundColour(Colour(100,100,100))
 {
@@ -58,7 +59,6 @@ TrackingStimulatorCanvas::TrackingStimulatorCanvas(TrackingNode* node)
     
     displayAxes = new DisplayAxes(node, this);
 
-    // startCallbacks();
     update();
 }
 
@@ -72,23 +72,9 @@ void TrackingStimulatorCanvas::initButtons()
 
     clearButton = new UtilityButton("Clear plot", Font("Small Text", 13, Font::plain));
     clearButton->setRadius(3.0f);
-    clearButton->addListener(this);
+    clearButton->onClick = [this] { clear(); };
+    // clearButton->addListener(this);
     addAndMakeVisible(clearButton);
-
-    saveButton = new UtilityButton("Save", Font("Small Text", 13, Font::plain));
-    saveButton->setRadius(3.0f);
-    saveButton->addListener(this);
-    addAndMakeVisible(saveButton);
-
-    saveAsButton = new UtilityButton("Save As", Font("Small Text", 13, Font::plain));
-    saveAsButton->setRadius(3.0f);
-    saveAsButton->addListener(this);
-    addAndMakeVisible(saveAsButton);
-
-    loadButton = new UtilityButton("Load", Font("Small Text", 13, Font::plain));
-    loadButton->setRadius(3.0f);
-    loadButton->addListener(this);
-    addAndMakeVisible(loadButton);
 
     simTrajectoryButton = new UtilityButton("Simulate", Font("Small Text", 13, Font::plain));
     simTrajectoryButton->setRadius(3.0f);
@@ -106,27 +92,29 @@ void TrackingStimulatorCanvas::initButtons()
     editButton->addListener(this);
     addAndMakeVisible(editButton);
 
-    delButton = new UtilityButton("Del", Font("Small Text", 13, Font::plain));
+    delButton = new UtilityButton("Delete", Font("Small Text", 13, Font::plain));
     delButton->setRadius(3.0f);
     delButton->addListener(this);
     addAndMakeVisible(delButton);
 
-    onButton = new UtilityButton("On", Font("Small Text", 13, Font::plain));
-    onButton->setRadius(3.0f);
+    onButton = new TextButton("Disabled");
+    onButton->setClickingTogglesState(true);
+    onButton->setToggleState(false, dontSendNotification);
+    onButton->setColour(TextButton::buttonOnColourId, Colours::green);
+    onButton->setColour(TextButton::buttonColourId, Colours::darkred);
+    onButton->setColour(TextButton::textColourOnId, Colours::white);
+    onButton->setColour(TextButton::textColourOffId, Colours::grey);
     onButton->addListener(this);
     addAndMakeVisible(onButton);
 
-    availableSources = new ComboBox("Event Channels");
-
+    availableSources = new ComboBox("Tracking Sources");
     availableSources->setEditableText(false);
     availableSources->setJustificationType(Justification::centredLeft);
     availableSources->addListener(this);
     availableSources->setSelectedId(0);
-
     addAndMakeVisible(availableSources);
 
     outputChans = new ComboBox("Output Channels");
-
     outputChans->setEditableText(false);
     outputChans->setJustificationType(Justification::centredLeft);
     outputChans->addListener(this);
@@ -142,27 +130,30 @@ void TrackingStimulatorCanvas::initButtons()
     // Create invisible circle toggle button
     for (int i = 0; i<MAX_CIRCLES; i++)
     {
-        newcircButton = new UtilityButton(String(i+1), Font("Small Text", 13, Font::plain));
-        newcircButton->setRadius(5.0f);
-        newcircButton->addListener(this);
-        newcircButton->setClickingTogglesState(true);
-        circlesButton[i] = newcircButton;
+        circlesButton[i] = new UtilityButton(String(i+1), Font("Small Text", 13, Font::plain));
+        circlesButton[i]->setRadioGroupId(101);
+        circlesButton[i]->setRadius(5.0f);
+        circlesButton[i]->addListener(this);
+        circlesButton[i]->setClickingTogglesState(true);
         addAndMakeVisible(circlesButton[i]);
     }
 
     uniformButton = new UtilityButton("uni", Font("Small Text", 13, Font::plain));
+    uniformButton->setRadioGroupId(201);
     uniformButton->setRadius(3.0f);
     uniformButton->addListener(this);
     uniformButton->setClickingTogglesState(true);
     addAndMakeVisible(uniformButton);
 
     gaussianButton = new UtilityButton("gauss", Font("Small Text", 13, Font::plain));
+    gaussianButton->setRadioGroupId(201);
     gaussianButton->setRadius(3.0f);
     gaussianButton->addListener(this);
     gaussianButton->setClickingTogglesState(true);
     addAndMakeVisible(gaussianButton);
 
     ttlButton = new UtilityButton("ttl", Font("Small Text", 13, Font::plain));
+    ttlButton->setRadioGroupId(201);
     ttlButton->setRadius(3.0f);
     ttlButton->addListener(this);
     ttlButton->setClickingTogglesState(true);
@@ -179,91 +170,38 @@ void TrackingStimulatorCanvas::initButtons()
 
 void TrackingStimulatorCanvas::initLabels()
 {
+    Font paramFont = Font("Fira Sans", "Regular", 16.0f);
     // Static Labels
     sourcesLabel = new Label("s_sources", "Input Source");
-    sourcesLabel->setFont(Font(20));
-    sourcesLabel->setColour(Label::textColourId, labelColour);
+    sourcesLabel->setFont(labelFont);
     addAndMakeVisible(sourcesLabel);
 
     outputLabel = new Label("s_output", "Output Channel");
-    outputLabel->setFont(Font(20));
-    outputLabel->setColour(Label::textColourId, labelColour);
+    outputLabel->setFont(labelFont);
     addAndMakeVisible(outputLabel);
 
     circlesLabel = new Label("s_circles", "Circles");
-    circlesLabel->setFont(Font(20));
-    circlesLabel->setColour(Label::textColourId, labelColour);
+    circlesLabel->setFont(labelFont);
     addAndMakeVisible(circlesLabel);
 
     paramLabel = new Label("s_param", "Trigger parameters");
-    paramLabel->setFont(Font(20));
-    paramLabel->setColour(Label::textColourId, labelColour);
+    paramLabel->setFont(labelFont);
     addAndMakeVisible(paramLabel);
 
-    controlLabel = new Label("s_control", "Control");
-    controlLabel->setFont(Font(20));
-    controlLabel->setColour(Label::textColourId, labelColour);
-    addAndMakeVisible(controlLabel);
-
-
-    cxLabel = new Label("s_cx", "xpos [%]:");
-    cxLabel->setFont(Font(15));
-    cxLabel->setColour(Label::textColourId, labelColour);
-    addAndMakeVisible(cxLabel);
-
-    cyLabel = new Label("s_cy", "ypos [%]:");
-    cyLabel->setFont(Font(15));
-    cyLabel->setColour(Label::textColourId, labelColour);
-    addAndMakeVisible(cyLabel);
-
-    cradLabel = new Label("s_crad", "radius [%]:");
-    cradLabel->setFont(Font(15));
-    cradLabel->setColour(Label::textColourId, labelColour);
-    addAndMakeVisible(cradLabel);
-
-    fmaxLabel = new Label("s_fmax", "fmax [Hz]:");
-    fmaxLabel->setFont(Font(20));
-    fmaxLabel->setColour(Label::textColourId, labelColour);
+    fmaxLabel = new Label("s_fmax", "FMax [Hz]:");
+    fmaxLabel->setFont(paramFont);
     addAndMakeVisible(fmaxLabel);
 
-    sdevLabel = new Label("s_sdev", "sd [%]:");
-    sdevLabel->setFont(Font(20));
-    sdevLabel->setColour(Label::textColourId, labelColour);
+    sdevLabel = new Label("s_sdev", "SD [%]:");
+    sdevLabel->setFont(paramFont);
     addAndMakeVisible(sdevLabel);
 
-    durationLabel = new Label("s_dur", "duration [ms]:");
-    durationLabel->setFont(Font(20));
-    durationLabel->setColour(Label::textColourId, labelColour);
+    durationLabel = new Label("s_dur", "Duration [ms]:");
+    durationLabel->setFont(paramFont);
     addAndMakeVisible(durationLabel);
 
-
-    // Edit Labels
-    cxEditLabel = new Label("cx", " ");
-    cxEditLabel->setFont(Font(15));
-    cxEditLabel->setColour(Label::textColourId, labelTextColour);
-    cxEditLabel->setColour(Label::backgroundColourId, labelBackgroundColour);
-    cxEditLabel->setEditable(true);
-    cxEditLabel->addListener(this);
-    addAndMakeVisible(cxEditLabel);
-
-    cyEditLabel = new Label("cy", " ");
-    cyEditLabel->setFont(Font(15));
-    cyEditLabel->setColour(Label::textColourId, labelTextColour);
-    cyEditLabel->setColour(Label::backgroundColourId, labelBackgroundColour);
-    cyEditLabel->setEditable(true);
-    cyEditLabel->addListener(this);
-    addAndMakeVisible(cyEditLabel);
-
-    cradEditLabel = new Label("crad", " ");
-    cradEditLabel->setFont(Font(15));
-    cradEditLabel->setColour(Label::textColourId, labelTextColour);
-    cradEditLabel->setColour(Label::backgroundColourId, labelBackgroundColour);
-    cradEditLabel->setEditable(true);
-    cradEditLabel->addListener(this);
-    addAndMakeVisible(cradEditLabel);
-
     fmaxEditLabel = new Label("fmax", String(processor->getStimFreq()));
-    fmaxEditLabel->setFont(Font(20));
+    fmaxEditLabel->setFont(paramFont);
     fmaxEditLabel->setColour(Label::textColourId, labelTextColour);
     fmaxEditLabel->setColour(Label::backgroundColourId, labelBackgroundColour);
     fmaxEditLabel->setEditable(true);
@@ -271,7 +209,7 @@ void TrackingStimulatorCanvas::initLabels()
     addAndMakeVisible(fmaxEditLabel);
 
     sdevEditLabel = new Label("sdev", String(processor->getStimSD()));
-    sdevEditLabel->setFont(Font(20));
+    sdevEditLabel->setFont(paramFont);
     sdevEditLabel->setColour(Label::textColourId, labelTextColour);
     sdevEditLabel->setColour(Label::backgroundColourId, labelBackgroundColour);
     sdevEditLabel->setEditable(true);
@@ -279,7 +217,7 @@ void TrackingStimulatorCanvas::initLabels()
     addAndMakeVisible(sdevEditLabel);
 
     durationEditLabel = new Label("sdev", String(processor->getTTLDuration()));
-    durationEditLabel->setFont(Font(20));
+    durationEditLabel->setFont(paramFont);
     durationEditLabel->setColour(Label::textColourId, labelTextColour);
     durationEditLabel->setColour(Label::backgroundColourId, labelBackgroundColour);
     durationEditLabel->setEditable(true);
@@ -320,7 +258,7 @@ void TrackingStimulatorCanvas::paint (Graphics& g)
     float plot_bottom_left_x = 0.01*getWidth();
     float plot_bottom_left_y = 0.01*getHeight();
 
-    float left_limit = 0.75*getWidth();
+    float left_limit = getWidth() - settingsWidth - 20;
 
     // set aspect ratio to cam size
     float aC = m_width / m_height;
@@ -328,21 +266,19 @@ void TrackingStimulatorCanvas::paint (Graphics& g)
     int camHeight = (aS > aC) ? plot_height : plot_height * (aS / aC);
     int camWidth = (aS < aC) ? plot_width : plot_width * (aC / aS);
 
-    g.setColour(Colours::black); // backbackround color
-    g.fillRect(0, 0, getWidth(), getHeight());
-
-    // on-off LED
-    if (m_onoff)
-        g.setColour(labelColour);
-    else
-        g.setColour(labelBackgroundColour);
-    g.fillEllipse(getWidth() - 0.065*getWidth(), 0.41*getHeight(), 0.03*getWidth(), 0.03*getHeight());
-
     if (camWidth > left_limit)
     {
         camWidth = left_limit;
         camHeight = camWidth / aC;
     }
+
+    g.setColour(Colours::black); // background color
+    g.fillRect(0, 0, getWidth(), getHeight());
+        
+    g.setColour(Colour(125, 125, 125)); //settings menu background color
+    g.fillRoundedRectangle(getWidth() - settingsWidth - 10, 10, settingsWidth, settingsHeight - 20, 7.0f);
+        
+    g.fillEllipse(getWidth() - 0.065*getWidth(), 0.41*getHeight(), 0.03*getWidth(), 0.03*getHeight());
 
     displayAxes->setBounds(int(plot_bottom_left_x), int(plot_bottom_left_y),
                            int(camWidth), int(camHeight));
@@ -352,63 +288,64 @@ void TrackingStimulatorCanvas::paint (Graphics& g)
 void TrackingStimulatorCanvas::resized()
 {
 
+    if(0.22*getWidth() < 150)
+        settingsWidth = 150;
+    else if(0.22*getWidth() > 300)
+        settingsWidth = 300;
+    else
+        settingsWidth = 0.22*getWidth();
+    
+    if(getHeight() < 500)
+        settingsHeight = 500;
+    else if(getHeight() > 800)
+        settingsHeight = 800;
+    else
+        settingsHeight = getHeight();
+
 //    displayAxes->setBounds(int(0.01*getHeight()), int(0.01*getHeight()), int(0.98*getHeight()), int(0.98*getHeight()));
     addAndMakeVisible(displayAxes);
 
-    // Buttons
-    saveButton->setBounds(getWidth() - 0.2*getWidth(), 0.9*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    saveAsButton->setBounds(getWidth() - 0.14*getWidth(), 0.9*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    loadButton->setBounds(getWidth() - 0.08*getWidth(), 0.9*getHeight(), 0.06*getWidth(),0.04*getHeight());
+    sourcesLabel->setBounds(getWidth() - settingsWidth, 25, settingsWidth - 20, 25);
+    availableSources->setBounds(getWidth() - settingsWidth, 60, settingsWidth - 20, 25);
 
-    simTrajectoryButton->setBounds(getWidth() - 0.2*getWidth(), 0.95*getHeight(), 0.09*getWidth(),0.04*getHeight());
-    clearButton->setBounds(getWidth() - 0.2*getWidth() + 0.09*getWidth(), 0.95*getHeight(), 0.09*getWidth(),0.04*getHeight());
+    outputLabel->setBounds(getWidth() - settingsWidth, 100, settingsWidth, 25);
+    outputChans->setBounds(getWidth() - settingsWidth, 135, settingsWidth - 20, 25);
 
-    newButton->setBounds(getWidth() - 0.2*getWidth(), 0.3*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    editButton->setBounds(getWidth() - 0.14*getWidth(), 0.3*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    delButton->setBounds(getWidth() - 0.08*getWidth(), 0.3*getHeight(), 0.06*getWidth(),0.04*getHeight());
+    circlesLabel->setBounds(getWidth() - settingsWidth, 0.34*settingsHeight, settingsWidth - 20, 25);
+    newButton->setBounds(getWidth() - settingsWidth, 0.39*settingsHeight, settingsWidth / 3 - 5, 30);
+    editButton->setBounds(getWidth() - (2*settingsWidth/3) - 5, 0.39*settingsHeight, settingsWidth / 3 - 5, 30);
+    delButton->setBounds(getWidth() - (settingsWidth / 3) - 10, 0.39*settingsHeight, settingsWidth / 3 - 5, 30);
 
-    onButton->setBounds(getWidth() - 0.065*getWidth(), 0.46*getHeight(), 0.03*getWidth(),0.03*getHeight());
+    onButton->setBounds(getWidth() - (3*settingsWidth/4), 0.52*settingsHeight, settingsWidth/2 - 30, 30);
 
     for (int i = 0; i<MAX_CIRCLES; i++)
     {
-        circlesButton[i]->setBounds(getWidth() - 0.2*getWidth()+i*(0.18/MAX_CIRCLES)*getWidth(), 0.5*getHeight(),
-                                    (0.18/MAX_CIRCLES)*getWidth(),0.03*getHeight());
+        circlesButton[i]->setBounds(getWidth() - settingsWidth + i*(settingsWidth - 20)/MAX_CIRCLES, 0.46*settingsHeight,
+                                    (settingsWidth - 20)/MAX_CIRCLES, 25);
+
         if (i<processor->getCircles().size())
             circlesButton[i]->setVisible(true);
         else
             circlesButton[i]->setVisible(false);
     }
 
-    uniformButton->setBounds(getWidth() - 0.2*getWidth(), 0.65*getHeight(), 0.06*getWidth(),0.03*getHeight());
-    gaussianButton->setBounds(getWidth() - 0.2*getWidth() + 0.06*getWidth(), 0.65*getHeight(), 0.06*getWidth(),0.03*getHeight());
-    ttlButton->setBounds(getWidth() - 0.2*getWidth() + 0.12*getWidth(), 0.65*getHeight(), 0.06*getWidth(),0.03*getHeight());
+    paramLabel->setBounds(getWidth() - settingsWidth, 0.6*settingsHeight, settingsWidth - 20, 25);
+    uniformButton->setBounds(getWidth() - settingsWidth, 0.65*settingsHeight, settingsWidth / 3 - 5, 30);
+    gaussianButton->setBounds(getWidth() - (2*settingsWidth/3) - 5, 0.65*settingsHeight, settingsWidth / 3 - 5, 30);
+    ttlButton->setBounds(getWidth() - (settingsWidth / 3) - 10, 0.65*settingsHeight, settingsWidth / 3 - 5, 30);
 
-    availableSources->setBounds(getWidth() - 0.2*getWidth(), 0.05*getHeight(), 0.18*getWidth(),0.04*getHeight());
-    outputChans->setBounds(getWidth() - 0.2*getWidth(), 0.15*getHeight(), 0.18*getWidth(),0.04*getHeight());
+    durationLabel->setBounds(getWidth() - settingsWidth, 0.7*settingsHeight, settingsWidth/2 - 20, 30);
+    durationEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.7*settingsHeight,settingsWidth/2 - 20, 30);
+    
+    fmaxLabel->setBounds(getWidth() - settingsWidth, 0.75*settingsHeight, settingsWidth/2 - 20, 30);
+    fmaxEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.75*settingsHeight, settingsWidth/2 - 20, 30);
+    
+    sdevLabel->setBounds(getWidth() - settingsWidth, 0.8*settingsHeight, settingsWidth/2 - 20, 30);
+    sdevEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.8*settingsHeight, settingsWidth/2 - 20, 30);
 
-    // Static Labels
-    sourcesLabel->setBounds(getWidth() - 0.2*getWidth(), 0.0*getHeight(), 0.08*getWidth(), 0.04*getHeight());
-    outputLabel->setBounds(getWidth() - 0.2*getWidth(), 0.1*getHeight(), 0.08*getWidth(), 0.04*getHeight());
-    circlesLabel->setBounds(getWidth() - 0.2*getWidth(), 0.25*getHeight(), 0.08*getWidth(), 0.04*getHeight());
-    paramLabel->setBounds(getWidth() - 0.2*getWidth(), 0.6*getHeight(), 0.08*getWidth(), 0.04*getHeight());
-    controlLabel->setBounds(getWidth() - 0.2*getWidth(), 0.85*getHeight(), 0.08*getWidth(), 0.04*getHeight());
+    simTrajectoryButton->setBounds(getWidth() - settingsWidth, settingsHeight - 50, settingsWidth/2 - 20, 30);
+    clearButton->setBounds(getWidth() - (settingsWidth / 2), settingsHeight - 50, settingsWidth/2 - 20, 30);
 
-    cxLabel->setBounds(getWidth() - 0.2*getWidth(), 0.35*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    cyLabel->setBounds(getWidth() - 0.2*getWidth(), 0.4*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    cradLabel->setBounds(getWidth() - 0.2*getWidth(), 0.45*getHeight(), 0.06*getWidth(),0.04*getHeight());
-
-    fmaxLabel->setBounds(getWidth() - 0.2*getWidth(), 0.7*getHeight(), 0.1*getWidth(),0.04*getHeight());
-    sdevLabel->setBounds(getWidth() - 0.2*getWidth(), 0.75*getHeight(), 0.1*getWidth(),0.04*getHeight());
-    durationLabel->setBounds(getWidth() - 0.2*getWidth(), 0.8*getHeight(), 0.1*getWidth(),0.04*getHeight());
-
-    // Edit Labels
-    cxEditLabel->setBounds(getWidth() - 0.14*getWidth(), 0.35*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    cyEditLabel->setBounds(getWidth() - 0.14*getWidth(), 0.4*getHeight(), 0.06*getWidth(),0.04*getHeight());
-    cradEditLabel->setBounds(getWidth() - 0.14*getWidth(), 0.45*getHeight(), 0.06*getWidth(),0.04*getHeight());
-
-    fmaxEditLabel->setBounds(getWidth() - 0.1*getWidth(), 0.7*getHeight(), 0.08*getWidth(),0.04*getHeight());
-    sdevEditLabel->setBounds(getWidth() - 0.1*getWidth(), 0.75*getHeight(), 0.08*getWidth(),0.04*getHeight());
-    durationEditLabel->setBounds(getWidth() - 0.1*getWidth(), 0.8*getHeight(), 0.08*getWidth(),0.04*getHeight());
     refresh();
 }
 
@@ -476,20 +413,6 @@ void TrackingStimulatorCanvas::buttonClicked(Button* button)
     {
         clear();
     }
-    else if (button == saveButton)
-    {
-        // processor->save();
-    }
-    else if (button == saveAsButton)
-    {
-        // processor->saveAs();
-    }
-    else if (button == loadButton)
-    {
-        // processor->load();
-        // update labels and buttons
-        // uploadCircles();
-    }
     else if (button == simTrajectoryButton)
     {
         if (simTrajectoryButton->getToggleState() == true)
@@ -503,183 +426,191 @@ void TrackingStimulatorCanvas::buttonClicked(Button* button)
     }
     else if (button == newButton)
     {
-        m_updateCircle = true;
+        
+        float cx, cy, crad;
 
-        // Create new circle
-        Value x = cxEditLabel->getTextValue();
-        Value y = cyEditLabel->getTextValue();
-        Value rad = cradEditLabel->getTextValue();
-        if (processor->getCircles().size() < MAX_CIRCLES)
+        if(processor->getSelectedCircle() >= 0)
         {
-            processor->addCircle(StimCircle(float(x.getValue()), float(y.getValue()), float(rad.getValue()), m_onoff));
-            processor->setSelectedCircle(processor->getCircles().size()-1);
-            circlesButton[processor->getSelectedCircle()]->setVisible(true);
-
-            // toggle current circle button (untoggles all the others)
-            if (circlesButton[processor->getSelectedCircle()]->getToggleState()==false)
-                circlesButton[processor->getSelectedCircle()]->triggerClick();
-            m_isDeleting = false;
+            cx = processor->getCircles()[processor->getSelectedCircle()].getX() * 100;
+            cy = processor->getCircles()[processor->getSelectedCircle()].getY() * 100;
+            crad = processor->getCircles()[processor->getSelectedCircle()].getRad() * 100;
         }
         else
-            CoreServices::sendStatusMessage("Max number of circles reached!");
+        {
+            cx = 25.0f;
+            cy = 25.0f;
+            crad = 10.0f;
+        }
 
+        CircleEditor* newCircleEditor = new CircleEditor(this, false, cx, cy, crad);
+        
+        CallOutBox& myBox = CallOutBox::launchAsynchronously (
+                                std::unique_ptr<Component>(newCircleEditor), 
+                                button->getScreenBounds(), 
+                                nullptr);
+
+        myBox.setDismissalMouseClicksAreAlwaysConsumed(true);
 
     }
     else if (button == editButton)
     {
-        m_updateCircle = true;
+        if(processor->getSelectedCircle() >= 0)
+        {
+            float cx = processor->getCircles()[processor->getSelectedCircle()].getX() * 100;
+            float cy = processor->getCircles()[processor->getSelectedCircle()].getY() * 100;
+            float crad = processor->getCircles()[processor->getSelectedCircle()].getRad() * 100;
 
-        Value x = cxEditLabel->getTextValue();
-        Value y = cyEditLabel->getTextValue();
-        Value rad = cradEditLabel->getTextValue();
-        if (areThereCicles())
-            processor->editCircle(processor->getSelectedCircle(),x.getValue(),y.getValue(),rad.getValue(),m_onoff);
+            CircleEditor* newCircleEditor = new CircleEditor(this, true, cx, cy, crad);
+            
+            CallOutBox& myBox = CallOutBox::launchAsynchronously (
+                                    std::unique_ptr<Component>(newCircleEditor), 
+                                    button->getScreenBounds(), 
+                                    nullptr);
+
+            myBox.setDismissalMouseClicksAreAlwaysConsumed(true);
+        }
+        else
+        {
+            Label* warningLabel = new Label("warning", "Please select a circle first!");
+            warningLabel->setSize(130, 60);
+            warningLabel->setColour(Label::textColourId, Colours::white);
+            warningLabel->setJustificationType(Justification::centred);
+
+            CallOutBox& myBox = CallOutBox::launchAsynchronously (
+                                    std::unique_ptr<Component>(warningLabel), 
+                                    button->getScreenBounds(), 
+                                    nullptr);
+            
+            myBox.setDismissalMouseClicksAreAlwaysConsumed(true);
+            
+        }
     }
     else if (button == delButton)
     {
-        m_updateCircle = true;
-
-        processor->deleteCircle(processor->getSelectedCircle());
-        // make visible only the remaining labels
-        for (int i = 0; i<MAX_CIRCLES; i++)
+        if(processor->getSelectedCircle() >= 0)
         {
-            if (i<processor->getCircles().size())
-                circlesButton[i]->setVisible(true);
-            else
-                circlesButton[i]->setVisible(false);
+            m_updateCircle = true;
+
+            processor->deleteCircle(processor->getSelectedCircle());
+
+            // Blank labels and untoggle all circle buttons
+            processor->setSelectedCircle(-1);
+            m_onoff = false;
+
+            for (int i = 0; i<MAX_CIRCLES; i++)
+                circlesButton[i]->setToggleState(false, dontSendNotification);
+            
+            // make visible only the remaining labels
+            for (int i = 0; i<MAX_CIRCLES; i++)
+            {
+                if (i<processor->getCircles().size())
+                    circlesButton[i]->setVisible(true);
+                else
+                    circlesButton[i]->setVisible(false);
+            }
         }
+        else
+        {
+            Label* warningLabel = new Label("warning", "Please select a circle first!");
+            warningLabel->setSize(130, 60);
+            warningLabel->setColour(Label::textColourId, Colours::white);
+            warningLabel->setJustificationType(Justification::centred);
 
-        // Blank labels and untoggle all circle buttons
-        processor->setSelectedCircle(-1);
-        cxEditLabel->setText(String(""), dontSendNotification);
-        cyEditLabel->setText(String(""), dontSendNotification);
-        cradEditLabel->setText(String(""), dontSendNotification);
-        m_onoff = false;
-
-        for (int i = 0; i<MAX_CIRCLES; i++)
-            //            circlesButton[i]->setEnabledState(false);
-            circlesButton[i]->setToggleState(false, true);
+            CallOutBox& myBox = CallOutBox::launchAsynchronously (
+                                    std::unique_ptr<Component>(warningLabel), 
+                                    button->getScreenBounds(), 
+                                    nullptr);
+            
+            myBox.setDismissalMouseClicksAreAlwaysConsumed(true);
+        }
 
     }
     else if (button == onButton)
     {
-        m_onoff = !m_onoff;
         // make changes immediately if circle already exist
         if (processor->getSelectedCircle() != -1)
-            editButton->triggerClick();
+        {
+            m_onoff = onButton->getToggleState();
+            if(m_onoff)
+            {
+                onButton->setButtonText("Enabled");
+            }
+            else
+            {
+                onButton->setButtonText("Disabled");
+            }
+            editSelectedCircle(m_current_cx, m_current_cy, m_current_crad);
+        }
+        else
+        {
+            onButton->setToggleState(false, dontSendNotification);
+            onButton->setButtonText("Disabled");
+            m_onoff = false;
+        }
     }
     else if (button == uniformButton)
     {
-        if (button->getToggleState()==true){
-            if (gaussianButton->getToggleState()==true)
-            {
-                gaussianButton->triggerClick();
-            }
-            if (ttlButton->getToggleState()==true)
-            {
-                ttlButton->triggerClick();
-            }
+        if (button->getToggleState()==true)
+        {
             fmaxLabel->setVisible(true);
             fmaxEditLabel->setVisible(true);
             sdevLabel->setVisible(false);
             sdevEditLabel->setVisible(false);
             processor->setStimMode(uniform);
         }
-        else
-            if (gaussianButton->getToggleState()==false && ttlButton->getToggleState()==false)
-            {
-                gaussianButton->triggerClick();
-                sdevLabel->setVisible(true);
-                sdevEditLabel->setVisible(true);
-            }
     }
     else if (button == gaussianButton)
     {
-        if (button->getToggleState()==true){
-            if (uniformButton->getToggleState()==true)
-            {
-                uniformButton->triggerClick();
-            }
-            if (ttlButton->getToggleState()==true)
-            {
-                ttlButton->triggerClick();
-            }
+        if (button->getToggleState()==true)
+        {
+            fmaxLabel->setVisible(true);
+            fmaxEditLabel->setVisible(true);
             sdevLabel->setVisible(true);
             sdevEditLabel->setVisible(true);
             processor->setStimMode(gauss);
         }
-        else
-            if (uniformButton->getToggleState()==false && ttlButton->getToggleState()==false)
-            {
-                uniformButton->triggerClick();
-                sdevLabel->setVisible(false);
-                sdevEditLabel->setVisible(false);
-            }
     }
     else if (button == ttlButton)
     {
-        if (button->getToggleState()==true){
-            if (uniformButton->getToggleState()==true)
-            {
-                uniformButton->triggerClick();
-            }
-            if (gaussianButton->getToggleState()==true)
-            {
-                gaussianButton->triggerClick();
-            }
+        if (button->getToggleState()==true)
+        {
             fmaxLabel->setVisible(false);
             fmaxEditLabel->setVisible(false);
             sdevLabel->setVisible(false);
             sdevEditLabel->setVisible(false);
             processor->setStimMode(ttl);
         }
-        else
-            if (uniformButton->getToggleState()==false && gaussianButton->getToggleState()==false)
-            {
-                uniformButton->triggerClick();
-                sdevLabel->setVisible(false);
-                sdevEditLabel->setVisible(false);
-            }
     }
-    else
+    else if(button->getRadioGroupId() == 101)
     {
         // check if one of circle button has been clicked
         bool someToggled = false;
         for (int i = 0; i<MAX_CIRCLES; i++)
         {
-            if (button == circlesButton[i] && circlesButton[i]->isVisible() )
+            if (button == circlesButton[i] && circlesButton[i]->getEnabledState() )
             {
                 // toggle button and untoggle all the others + update
                 if (button->getToggleState()==true)
                 {
-                    for (int j = 0; j<MAX_CIRCLES; j++)
-                        if (i!=j && circlesButton[j]->getToggleState()==true)
-                        {
-                            //                        circlesButton[j]->triggerClick();
-                            //                            circlesButton[j]->setEnabledState(false);
-                            circlesButton[j]->setToggleState(false, true);
-
-                        }
                     processor->setSelectedCircle(i);
                     someToggled = true;
                     // retrieve labels and on button values
                     if (areThereCicles())
                     {
-                        cxEditLabel->setText(String(processor->getCircles()[processor->getSelectedCircle()].getX()), dontSendNotification);
-                        cyEditLabel->setText(String(processor->getCircles()[processor->getSelectedCircle()].getY()), dontSendNotification);
-                        cradEditLabel->setText(String(processor->getCircles()[processor->getSelectedCircle()].getRad()), dontSendNotification);
                         m_onoff = processor->getCircles()[processor->getSelectedCircle()].getOn();
+                        m_current_cx = processor->getCircles()[processor->getSelectedCircle()].getX();
+                        m_current_cy = processor->getCircles()[processor->getSelectedCircle()].getY();
+                        m_current_crad = processor->getCircles()[processor->getSelectedCircle()].getRad();
+                        onButton->setToggleState(m_onoff, sendNotification);
                     }
                 }
+                break;
             }
         }
         if (!someToggled)
         {
             // blank labels
             processor->setSelectedCircle(-1);
-            cxEditLabel->setText(String(""), dontSendNotification);
-            cyEditLabel->setText(String(""), dontSendNotification);
-            cradEditLabel->setText(String(""), dontSendNotification);
             m_onoff = false;
 
         }
@@ -701,34 +632,6 @@ void TrackingStimulatorCanvas::uploadCircles()
 
 void TrackingStimulatorCanvas::labelTextChanged(Label *label)
 {
-    // instance a new circle only when the add new button is clicked
-    if (label == cxEditLabel)
-    {
-        Value val = label->getTextValue();
-        if (!(float(val.getValue())>=0 && float(val.getValue())<=1))
-        {
-            CoreServices::sendStatusMessage("Select value must be within 0 and 1!");
-            label->setText("", dontSendNotification);
-        }
-    }
-    if (label == cyEditLabel)
-    {
-        Value val = label->getTextValue();
-        if (!(float(val.getValue())>=0 && (float(val.getValue())<=1)))
-        {
-            CoreServices::sendStatusMessage("Select value must be within 0 and 1!");
-            label->setText("", dontSendNotification);
-        }
-    }
-    if (label == cradEditLabel)
-    {
-        Value val = label->getTextValue();
-        if (!(float(val.getValue())>=0 && (float(val.getValue())<=1)))
-        {
-            CoreServices::sendStatusMessage("Select value must be within 0 and 1!");
-            label->setText("", dontSendNotification);
-        }
-    }
     if (label == fmaxEditLabel)
     {
         Value val = label->getTextValue();
@@ -836,6 +739,40 @@ void TrackingStimulatorCanvas::clear()
     repaint();
 }
 
+void TrackingStimulatorCanvas::createCircle(float cx, float cy, float rad)
+{
+    if (processor->getCircles().size() < MAX_CIRCLES)
+    {
+        setOnButton();
+        processor->addCircle(StimCircle(cx, cy, rad, m_onoff));
+        processor->setSelectedCircle(processor->getCircles().size()-1);
+        circlesButton[processor->getSelectedCircle()]->setVisible(true);
+
+        // toggle current circle button (untoggles all the others)
+        if (circlesButton[processor->getSelectedCircle()]->getToggleState()==false)
+            circlesButton[processor->getSelectedCircle()]->triggerClick();
+
+        m_isDeleting = false;
+        m_updateCircle = true;
+    }
+    else
+        CoreServices::sendStatusMessage("Max number of circles reached!");
+}
+
+void TrackingStimulatorCanvas::selectCircle(int circleIdx)
+{
+    if (!circlesButton[circleIdx]->getToggleState())
+        circlesButton[circleIdx]->triggerClick();
+}
+
+void TrackingStimulatorCanvas::editSelectedCircle(float cx, float cy, float rad)
+{
+    if (areThereCicles())
+        processor->editCircle(processor->getSelectedCircle(), cx, cy, rad, m_onoff);
+    
+    m_updateCircle = true;
+}
+
 bool TrackingStimulatorCanvas::getUpdateCircle(){
     return m_updateCircle;
 }
@@ -847,6 +784,113 @@ void TrackingStimulatorCanvas::setUpdateCircle(bool onoff){
 void TrackingStimulatorCanvas::setOnButton()
 {
     m_onoff = true;
+}
+
+
+
+/** ------------- Circle Editor Component --------------- */
+
+CircleEditor::CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode_, float cx, float cy, float cRad)
+    : canvas(stimCanvas)
+    , isEditMode(isEditMode_)
+    , xVal(cx)
+    , yVal(cy)
+    , radius(cRad)
+{
+    LookAndFeel_V4* sliderLAF = new LookAndFeel_V4();
+    sliderLAF->setColour(Slider::textBoxBackgroundColourId, Colours::lightgrey);
+    sliderLAF->setColour(Slider::textBoxTextColourId, Colours::black);
+    sliderLAF->setColour(Slider::textBoxHighlightColourId, Colours::darkgrey);
+    sliderLAF->setColour(Slider::trackColourId, Colours::grey);
+    sliderLAF->setColour(Slider::thumbColourId, Colours::yellow);
+    sliderLAF->setColour(Slider::backgroundColourId, Colours::black);
+
+    Font labelFont = Font("Fira Sans", "SemiBold", 16.0f);
+
+    cxLabel = std::make_unique<Label>("CX", "X [%] :");
+    cxLabel->setFont(labelFont);
+    cxLabel->setColour(Label::textColourId, Colours::lightgrey);
+    cxLabel->setBounds(10, 10, 55, 30);
+    addAndMakeVisible(cxLabel.get());
+
+    cxSlider = std::make_unique<Slider>("CXSlider");
+    cxSlider->setLookAndFeel(sliderLAF);
+    cxSlider->setSliderStyle(Slider::LinearHorizontal);
+    cxSlider->setTextBoxStyle(Slider::TextBoxLeft, false, 40, 25);
+    cxSlider->setRange(0, 100, 1);
+    cxSlider->setValue(xVal, dontSendNotification);
+    cxSlider->setBounds(70, 10, 160, 30);
+    addAndMakeVisible(cxSlider.get());
+
+    cyLabel = std::make_unique<Label>("CY", "Y [%] :");
+    cyLabel->setFont(labelFont);
+    cyLabel->setColour(Label::textColourId, Colours::lightgrey);
+    cyLabel->setBounds(10, 50, 55, 30);
+    addAndMakeVisible(cyLabel.get());
+
+    cySlider = std::make_unique<Slider>("CYSlider");
+    cySlider->setLookAndFeel(sliderLAF);
+    cySlider->setSliderStyle(Slider::LinearHorizontal);
+    cySlider->setTextBoxStyle(Slider::TextBoxLeft, false, 40, 25);
+    cySlider->setRange(0, 100, 1);
+    cySlider->setValue(yVal, dontSendNotification);
+    cySlider->setBounds(70, 50, 160, 30);
+    addAndMakeVisible(cySlider.get());
+
+    cradLabel = std::make_unique<Label>("CRAD", "Rad [%] :");
+    cradLabel->setFont(labelFont);
+    cradLabel->setColour(Label::textColourId, Colours::lightgrey);
+    cradLabel->setBounds(10, 90, 55, 30);
+    addAndMakeVisible(cradLabel.get());
+
+    cradSlider = std::make_unique<Slider>("CRadSlider");
+    cradSlider->setLookAndFeel(sliderLAF);
+    cradSlider->setSliderStyle(Slider::LinearHorizontal);
+    cradSlider->setTextBoxStyle(Slider::TextBoxLeft, false, 40, 25);
+    cradSlider->setRange(1, 100, 1);
+    cradSlider->setValue(radius, dontSendNotification);
+    cradSlider->setBounds(70, 90, 160, 30);
+    addAndMakeVisible(cradSlider.get());
+
+    if(isEditMode)
+    {   
+        cxSlider->onValueChange = [this] { updateCircleParams(); };
+        cySlider->onValueChange = [this] { updateCircleParams(); };
+        cradSlider->onValueChange = [this] { updateCircleParams(); };
+        setSize(240, 130);
+    }
+    else
+    {
+        createButton = std::make_unique<TextButton>("Create");
+        createButton->setButtonText("Create");
+        createButton->setColour(TextButton::buttonColourId, Colours::green);
+        createButton->setColour(TextButton::textColourOffId , Colours::white);
+        createButton->setBounds(85, 140, 70, 30);
+        addAndMakeVisible(createButton.get());
+        createButton->onClick = [this] { createNewCircle(); };
+
+        setSize(240, 180);
+    }
+}
+
+void CircleEditor::updateCircleParams()
+{
+    xVal = cxSlider->getValue() / 100;
+    yVal = cySlider->getValue() / 100;
+    radius = cradSlider->getValue() / 100;
+
+    canvas->editSelectedCircle(xVal, yVal, radius);
+}
+
+void CircleEditor::createNewCircle()
+{
+    xVal = cxSlider->getValue() / 100;
+    yVal = cySlider->getValue() / 100;
+    radius = cradSlider->getValue() / 100;
+
+    canvas->createCircle(xVal, yVal, radius);
+
+    findParentComponentOfClass<CallOutBox>()->exitModalState(0);
 }
 
 
@@ -864,17 +908,11 @@ DisplayAxes::DisplayAxes(TrackingNode* node, TrackingStimulatorCanvas* canvas_)
     , m_copy (false)
 
 {
-    xlims[0] = getBounds().getRight() - getWidth();
-    xlims[1] = getBounds().getRight();
-    ylims[0] = getBounds().getBottom() - getHeight();
-    ylims[1] = getBounds().getBottom();
-
     color_palette["red"] = Colours::red;
 	color_palette["green"] = Colours::green;
 	color_palette["blue"] = Colours::blue;
 	color_palette["cyan"] = Colours::cyan;
 	color_palette["magenta"] = Colours::magenta;
-	color_palette["yellow"] = Colours::yellow;
 	color_palette["orange"] = Colours::orange;
 	color_palette["pink"] = Colours::pink;
 	color_palette["grey"] = Colours::grey;
@@ -892,12 +930,8 @@ void DisplayAxes::addPosition(int index, TrackingPosition& postionData)
 }
 
 
-void DisplayAxes::paint(Graphics& g){
-
-    xlims[0] = getX();
-    xlims[1] = getBounds().getRight();
-    ylims[0] = getY();
-    ylims[1] = getBounds().getBottom();
+void DisplayAxes::paint(Graphics& g)
+{
 
     g.setColour(Colour(0, 18, 43)); //background color
     g.fillAll();
@@ -914,8 +948,8 @@ void DisplayAxes::paint(Graphics& g){
             cur_rad = processor->getCircles()[i].getRad();
 
 
-            x_c = int(cur_x * getWidth() + xlims[0]);
-            y_c = int(cur_y * getHeight() + ylims[0]);
+            x_c = int(cur_x * getWidth());
+            y_c = int(cur_y * getHeight());
 
             radx = int(cur_rad * getWidth());
             rady = int(cur_rad * getHeight());
@@ -936,7 +970,7 @@ void DisplayAxes::paint(Graphics& g){
                 }
             }
             else
-                g.setColour(Colours::grey);
+                g.setColour(Colours::grey.withAlpha(0.5f));
 
             if (i==processor->getSelectedCircle())
             {
@@ -946,11 +980,22 @@ void DisplayAxes::paint(Graphics& g){
                     g.fillEllipse(x, y, 2*radx, 2*rady);
                     g.setColour(Colours::white);
                     g.drawEllipse(x, y, 2*radx, 2*rady, 3.0f);
+
+                    // Display circle number
+                    g.setColour(Colours::white);
+                    g.setFont(18.0f);
+                    g.drawRect(x_c - 10, y_c - 10, 20, 20, 2);
+                    g.drawFittedText(String(i+1), x_c - 10, y_c - 10, 20, 20, Justification::centred, 1);
                 }
             }
             else
             {
                 g.fillEllipse(x, y, 2*radx, 2*rady);
+
+                // Display circle number
+                g.setColour(Colours::white);
+                g.setFont(18.0f);
+                g.drawFittedText(String(i+1), x_c - 10, y_c - 10, 20, 20, Justification::centred, 1);
             }
         }
     }
@@ -974,10 +1019,10 @@ void DisplayAxes::paint(Graphics& g){
                 // if tracking data are empty positions are set to -1
                 if (prev_position.x != -1 && prev_position.y != -1)
                 {
-                    float x = getWidth()*position.x + xlims[0];
-                    float y = getHeight()*position.y + ylims[0];
-                    float x_prev = getWidth()*prev_position.x + xlims[0];
-                    float y_prev = getHeight()*prev_position.y + ylims[0];
+                    float x = getWidth()*position.x;
+                    float y = getHeight()*position.y;
+                    float x_prev = getWidth()*prev_position.x;
+                    float y_prev = getHeight()*prev_position.y;
                     g.drawLine(x_prev, y_prev, x, y, 5.0f);
                 }
             }
@@ -985,64 +1030,13 @@ void DisplayAxes::paint(Graphics& g){
             if (!m_positions[selectedSource].empty ())
             {
                 TrackingPosition position = m_positions[selectedSource].back();
-                float x = getWidth()*position.x + xlims[0];
-                float y = getHeight()*position.y + ylims[0];
-
-                if(source.positionInsideACircle)
-                    g.setColour(source_colour.brighter());
-                else
-                    g.setColour(source_colour.darker());
+                float x = getWidth()*position.x;
+                float y = getHeight()*position.y;
 
                 g.fillEllipse(x - 0.01*getHeight(), y - 0.01*getHeight(), 0.02*getHeight(), 0.02*getHeight());
             }
         }
     }
-
-    // // Draw a point for the current position
-    // // if inside circle display in RED
-    // if (processor->getSimulateTrajectory())
-    // {
-    //     float pos_x = processor->getSimX();
-    //     float pos_y = processor->getSimY();
-
-    //     if ((pos_x >= 0 && pos_x <= 1) && (pos_y >= 0 && pos_y <= 1))
-    //     {
-    //         int x, y;
-
-    //         x = int(pos_x * getWidth() + xlims[0]);
-    //         y = int(pos_y * getHeight() + ylims[0]);
-
-    //         int circleIn = processor->isPositionWithinCircles(pos_x, pos_y);
-
-    //         if (circleIn != -1 && processor->getCircles()[circleIn].getOn())
-    //             g.setColour(inOfCirclesColour);
-    //         else
-    //             g.setColour(outOfCirclesColour);
-    //         g.fillEllipse(x, y, 0.02*getHeight(), 0.02*getHeight());
-    //     }
-    // }
-    // else if (canvas->getSelectedSource() != -1)
-    // {
-    //     float pos_x = processor->getX(canvas->getSelectedSource());
-    //     float pos_y = processor->getY(canvas->getSelectedSource());
-
-    //     if ((pos_x >= 0 && pos_x <= 1) && (pos_y >= 0 && pos_y <= 1))
-    //     {
-    //         int x, y;
-
-    //         x = int(pos_x * getWidth() + xlims[0]);
-    //         y = int(pos_y * getHeight() + ylims[0]);
-
-    //         int circleIn = processor->isPositionWithinCircles(pos_x, pos_y);
-
-    //         if (circleIn != -1 && processor->getCircles()[circleIn].getOn())
-    //             g.setColour(inOfCirclesColour);
-    //         else
-    //             g.setColour(outOfCirclesColour);
-    //         g.fillEllipse(x, y, 0.02*getHeight(), 0.02*getHeight());
-    //     }
-    // }
-
 
     // Draw moving, creating, copying or resizing circle
     if (m_creatingNewCircle || m_movingCircle || m_resizing || m_copy)
@@ -1050,8 +1044,8 @@ void DisplayAxes::paint(Graphics& g){
         // draw circle increasing in size
         int x_c, y_c, x, y, radx, rady;
 
-        x_c = int(m_newX * getWidth() + xlims[0]);
-        y_c = int(m_newY * getHeight() + ylims[0]);
+        x_c = int(m_newX * getWidth());
+        y_c = int(m_newY * getHeight());
         radx = int(m_tempRad * getWidth());
         rady = int(m_tempRad * getHeight());
         // center ellipse
@@ -1095,7 +1089,12 @@ void DisplayAxes::mouseMove(const MouseEvent& event){
         int circleIn = processor->isPositionWithinCircles(float(event.x)/float(getWidth()),
                                                           float(event.y)/float(getHeight()));
         if(circleIn != -1)
-            setMouseCursor(MouseCursor::PointingHandCursor);
+        {
+            if (event.mods.isCtrlDown())
+                setMouseCursor(MouseCursor::BottomRightCornerResizeCursor);
+            else
+                setMouseCursor(MouseCursor::PointingHandCursor);
+        }
         else
             setMouseCursor(MouseCursor::CrosshairCursor);
     }
@@ -1124,8 +1123,7 @@ void DisplayAxes::mouseDown(const MouseEvent& event)
         // If on a circle -> select circle!
         if (circleIn != -1)
         {
-            if (canvas->circlesButton[circleIn]->getToggleState() != true)
-                canvas->circlesButton[circleIn]->triggerClick();
+            canvas->selectCircle(circleIn);
             m_creatingNewCircle = false;
             m_newX = float(event.x)/float(getWidth());
             m_newY = float(event.y)/float(getHeight());
@@ -1134,7 +1132,6 @@ void DisplayAxes::mouseDown(const MouseEvent& event)
             if (event.mods.isCtrlDown())
             {
                 m_resizing = true;
-                setMouseCursor(MouseCursor::BottomRightCornerResizeCursor);
             }
             else
             {
@@ -1154,8 +1151,6 @@ void DisplayAxes::mouseDown(const MouseEvent& event)
             m_newY = float(event.y)/float(getHeight());
             m_tempRad = 0.005;
             setMouseCursor(MouseCursor::UpDownLeftRightResizeCursor);
-            canvas->cxEditLabel->setText(String(m_newX), dontSendNotification);
-            canvas->cyEditLabel->setText(String(m_newY), dontSendNotification);
         }
     }
 }
@@ -1166,10 +1161,9 @@ void DisplayAxes::mouseUp(const MouseEvent& event){
         // Change to new center and edit circle
         m_newX = float(event.x)/float(getWidth());
         m_newY = float(event.y)/float(getHeight());
-        canvas->cxEditLabel->setText(String(m_newX),dontSendNotification);
-        canvas->cyEditLabel->setText(String(m_newY),dontSendNotification);
+        m_newRad = processor->getCircles()[processor->getSelectedCircle()].getRad();
 
-        canvas->editButton->triggerClick();
+        canvas->editSelectedCircle(m_newX, m_newY, m_newRad);
         m_movingCircle = false;
         // m_doubleClick = false;
         setMouseCursor(MouseCursor::CrosshairCursor);
@@ -1186,10 +1180,8 @@ void DisplayAxes::mouseUp(const MouseEvent& event){
 
             if (m_newRad > 0.005)
             {
-                canvas->cradEditLabel->setText(String(m_newRad), dontSendNotification);
                 // Add new circle
-                canvas->setOnButton();
-                canvas->newButton->triggerClick();
+                canvas->createCircle(m_newX, m_newY, m_newRad);
             }
         }
         setMouseCursor(MouseCursor::CrosshairCursor);
@@ -1198,14 +1190,14 @@ void DisplayAxes::mouseUp(const MouseEvent& event){
     {
         m_newRad = sqrt((pow(float(event.x)/float(getWidth())-m_newX, 2) +
                              pow(float(event.y)/float(getHeight())-m_newY, 2)));
+        m_newX = processor->getCircles()[processor->getSelectedCircle()].getX();
+        m_newY = processor->getCircles()[processor->getSelectedCircle()].getY();
 
         if (m_newRad > 0.005)
         {
-            canvas->cradEditLabel->setText(String(m_newRad), dontSendNotification);
-
             // Add new circle
-            canvas->setOnButton();
-            canvas->editButton->triggerClick();
+            // canvas->setOnButton();
+            canvas->editSelectedCircle(m_newX, m_newY, m_newRad);
         }
         setMouseCursor(MouseCursor::CrosshairCursor);
     }
@@ -1271,17 +1263,13 @@ void DisplayAxes::copy()
 {
     m_copy = true;
     if (canvas->areThereCicles())
-        m_tempRad = processor->getCircles()[processor->getSelectedCircle()].getRad();
+        m_newRad = processor->getCircles()[processor->getSelectedCircle()].getRad();
 }
 
 void DisplayAxes::paste()
 {
     m_copy = false;
-    canvas->cxEditLabel->setText(String(m_newX), dontSendNotification);
-    canvas->cyEditLabel->setText(String(m_newY), dontSendNotification);
-    // Add new circle
-    canvas->setOnButton();
-    canvas->newButton->triggerClick();
+    canvas->createCircle(m_newX, m_newY, m_newRad);
 
 }
 
