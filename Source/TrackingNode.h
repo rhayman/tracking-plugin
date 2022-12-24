@@ -380,8 +380,6 @@ private:
     int m_outputChan; // Selected stimulation chan
 	int m_selectedStimSource; // Selected stimulation source
 
-	Array<TTLEventPtr> offEventPtrs;
-
 	StreamSettings<TrackingNodeSettings> settings;
 
 	OwnedArray<TrackingModule> trackers;
