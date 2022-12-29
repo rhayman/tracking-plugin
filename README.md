@@ -12,7 +12,7 @@ This plugin can be added via the Open Ephys GUI's built-in Plugin Installer. Pre
 
 Documentation related to the Tracking Plugin user interface and the required Bonsai configuration are available [here](https://open-ephys.github.io/gui-docs/User-Manual/Plugins/Tracking-Plugin.html).
 
-**Important:** This plugin has been substantially updated for GUI version 0.6.x. Most notably, all of the functionality is now encapsulated into a single "Filter" plugin, rather than a Source, Filter, and Sink. If you've been using this plugin previously, please read through the documentation carefully to understand what has changed.
+**Important:** This plugin has been substantially updated for GUI version `0.6.x`. Most notably, all of the functionality is now encapsulated into a single "Filter" plugin, rather than a Source, Filter, and Sink. If you've been using this plugin previously, please read through the documentation carefully to understand what has changed.
 
 
 ## Building from source
