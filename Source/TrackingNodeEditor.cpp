@@ -71,7 +71,7 @@ TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
     stimulateButton->setButtonText("OFF");
     stimulateButton->setColour(TextButton::buttonOnColourId, Colours::yellow);
     // stimulateButton->setColour(TextButton::buttonColourId, Colours::grey);
-    stimulateButton->setToggleState(false, dontSendNotification);
+    stimulateButton->setToggleState(true, dontSendNotification);
     addAndMakeVisible(stimulateButton.get()); // makes the button a child component of the editor and makes it visible
 }
 

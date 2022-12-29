@@ -40,7 +40,7 @@ operator<<(std::ostream &stream, const TrackingModule &module)
 
 TrackingNode::TrackingNode()
     : GenericProcessor("Tracking Plugin")
-    , m_isOn(false)
+    , m_isOn(true)
     , m_positionIsUpdated(false)
     , m_simulateTrajectory(false)
     , m_selectedCircle(-1)
