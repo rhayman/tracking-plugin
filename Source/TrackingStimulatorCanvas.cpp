@@ -138,21 +138,21 @@ void TrackingStimulatorCanvas::initButtons()
         addAndMakeVisible(circlesButton[i]);
     }
 
-    uniformButton = new UtilityButton("uni", Font("Small Text", 13, Font::plain));
+    uniformButton = new UtilityButton("uniform", Font("Small Text", 13, Font::plain));
     uniformButton->setRadioGroupId(201);
     uniformButton->setRadius(3.0f);
     uniformButton->addListener(this);
     uniformButton->setClickingTogglesState(true);
     addAndMakeVisible(uniformButton);
 
-    gaussianButton = new UtilityButton("gauss", Font("Small Text", 13, Font::plain));
+    gaussianButton = new UtilityButton("gaussian", Font("Small Text", 13, Font::plain));
     gaussianButton->setRadioGroupId(201);
     gaussianButton->setRadius(3.0f);
     gaussianButton->addListener(this);
     gaussianButton->setClickingTogglesState(true);
     addAndMakeVisible(gaussianButton);
 
-    ttlButton = new UtilityButton("ttl", Font("Small Text", 13, Font::plain));
+    ttlButton = new UtilityButton("single", Font("Small Text", 13, Font::plain));
     ttlButton->setRadioGroupId(201);
     ttlButton->setRadius(3.0f);
     ttlButton->addListener(this);
