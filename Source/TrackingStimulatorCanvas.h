@@ -159,7 +159,7 @@ class CircleEditor : public Component
 public:
     CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode, float cx, float cy, float cRad);
 
-    ~CircleEditor() {}
+    ~CircleEditor();
 
 private:
 
@@ -172,6 +172,8 @@ private:
     std::unique_ptr<Label> cradLabel;
 
     std::unique_ptr<TextButton> createButton;
+
+    std::unique_ptr<LookAndFeel_V4> sliderLAF;
 
     float xVal;
     float yVal;

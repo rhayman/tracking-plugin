@@ -485,6 +485,8 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
         trackers[i]->source.y_pos = message->position.y;
         trackers[i]->source.width = message->position.width;
         trackers[i]->source.height = message->position.height;
+
+		//std::cout << "Adding position: " << trackers[i]->source.x_pos << ", " << trackers[i]->source.y_pos << std::endl;
     }
 
     m_positionIsUpdated = true;
@@ -558,40 +560,28 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
 void TrackingNode::receiveMessage(int port, String address, const TrackingData &message)
 {
 
+    //std::cout << "TrackingNode processing receivedMessage" << std::endl;
+
     lock.enter();
     for (int i = 0; i < trackers.size(); ++i) 
     {
         if (trackers[i]->m_port != port || trackers[i]->m_address.compare(address) != 0)
             continue;
 
-        if (CoreServices::getRecordingStatus())
-        {
-            if (!m_isRecordingTimeLogged)
-            {
-                m_startingRecTimeMillis = Time::currentTimeMillis();
-                m_isRecordingTimeLogged = true;
-                std::cout << "Starting Recording Ts: " << m_startingRecTimeMillis << std::endl;
-                trackers[i]->m_messageQueue->clear();
-                CoreServices::sendStatusMessage("Clearing queue before start recording");
-            }
-        }
-        else
-        {
-            m_isRecordingTimeLogged = false;
-        }
-
-        if (CoreServices::getAcquisitionStatus()) // && !CoreServices::getRecordingStatus())
+        if (CoreServices::getAcquisitionStatus())
         {
             if (!m_isAcquisitionTimeLogged)
             {
                 m_startingAcqTimeMillis = Time::currentTimeMillis();
                 m_isAcquisitionTimeLogged = true;
-                std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
+                //std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
                 trackers[i]->m_messageQueue->clear();
                 CoreServices::sendStatusMessage("Clearing queue before start acquisition");
             }
             // LOGC("m_positionIsUpdated: ", m_positionIsUpdated);
             // m_positionIsUpdated = true;
+
+			//std::cout << "Acquisition is active, pushing message to queue" << std::endl;
 
             int64 ts = CoreServices::getSoftwareTimestamp();
 
@@ -716,11 +706,13 @@ int TrackingQueue::count() {
 TrackingServer::TrackingServer()
     : Thread("OscListener Thread"), m_incomingPort(0), m_address("")
 {
+    
 }
 
 TrackingServer::TrackingServer(int port, String address, TrackingNode *processor)
     : Thread("OscListener Thread"), m_incomingPort(port), m_address(address), m_processor(processor)
 {
+    LOGC("Creating OSC server on port ", port, " with address ", address);
 }
 
 TrackingServer::~TrackingServer()
@@ -735,7 +727,8 @@ TrackingServer::~TrackingServer()
 void TrackingServer::ProcessMessage(const osc::ReceivedMessage &receivedMessage,
                                     const IpEndpointName &)
 {
-    int64 ts = CoreServices::getGlobalTimestamp();
+	 //std::cout << "Received message: " << receivedMessage.AddressPattern() << std::endl;
+     
     try
     {
         uint32 argumentCount = 4;
@@ -760,6 +753,8 @@ void TrackingServer::ProcessMessage(const osc::ReceivedMessage &receivedMessage,
 
         TrackingData trackingData;
 
+        
+
         // Arguments:
         args >> trackingData.position.x;      // 0 - x
         args >> trackingData.position.y;      // 1 - y
@@ -767,8 +762,15 @@ void TrackingServer::ProcessMessage(const osc::ReceivedMessage &receivedMessage,
         args >> trackingData.position.height; // 3 - box height
         args >> osc::EndMessage;
 
+        //std::cout << "Message contents: " << trackingData.position.x << ", " <<
+        //    trackingData.position.y << ", " <<
+        //    trackingData.position.width << ", " <<
+         //   trackingData.position.height << std::endl;
+            
+
         if (std::strcmp(receivedMessage.AddressPattern(), m_address.toStdString().c_str()) != 0)
         {
+            //LOGC("Address pattern mismatch; got ", receivedMessage.AddressPattern(), " expected ", m_address.toStdString().c_str());
             return;
         }
         // add trackingmodule to receive message call: processor->receiveMessage (m_incomingPort, m_address, trackingData);
@@ -785,7 +787,7 @@ void TrackingServer::ProcessMessage(const osc::ReceivedMessage &receivedMessage,
 void TrackingServer::run()
 {
     sleep(1000);
-    CoreServices::sendStatusMessage("Server running");
+    CoreServices::sendStatusMessage("OSC Server is running");
     // Start the oscpack OSC Listener Thread
     try
     {

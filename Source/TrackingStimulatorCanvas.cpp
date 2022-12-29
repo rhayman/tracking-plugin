@@ -251,7 +251,7 @@ bool TrackingStimulatorCanvas::areThereCicles()
         return false;
 }
 
-void TrackingStimulatorCanvas::paint (Graphics& g)
+void TrackingStimulatorCanvas::paint(Graphics& g)
 {
     float plot_height = 0.98*getHeight();
     float plot_width = 0.75*getWidth();
@@ -282,6 +282,8 @@ void TrackingStimulatorCanvas::paint (Graphics& g)
 
     displayAxes->setBounds(int(plot_bottom_left_x), int(plot_bottom_left_y),
                            int(camWidth), int(camHeight));
+
+	//std::cout << "Setting displayAxes bounds to " << plot_bottom_left_x << ", " << plot_bottom_left_y << ", " << camWidth << ", " << camHeight << std::endl;
     displayAxes->repaint();
 }
 
@@ -695,14 +697,25 @@ void TrackingStimulatorCanvas::refresh()
 
     if (processor->positionIsUpdated())
     {
+        //std::cout << "Position is updated" << std::endl;
+
         for (int i = 0; i < processor->getNumSources(); i++)
         {
+            
+            
             TrackingSources& source = processor->getTrackingSource(i);
             TrackingPosition currPos;
             currPos.x = source.x_pos;
             currPos.y = source.y_pos;
             currPos.width = source.width;
             currPos.height = source.height;
+
+            //std::cout << "Adding position for source " << i << ": " <<
+            //    currPos.x << ", " <<
+            //    currPos.y << ", " <<
+            //    currPos.width << ", " <<
+            //    currPos.height 
+            //    << std::endl;
 
             displayAxes->addPosition(i, currPos);
 
@@ -797,7 +810,7 @@ CircleEditor::CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode
     , yVal(cy)
     , radius(cRad)
 {
-    LookAndFeel_V4* sliderLAF = new LookAndFeel_V4();
+    sliderLAF = std::make_unique<LookAndFeel_V4>();
     sliderLAF->setColour(Slider::textBoxBackgroundColourId, Colours::lightgrey);
     sliderLAF->setColour(Slider::textBoxTextColourId, Colours::black);
     sliderLAF->setColour(Slider::textBoxHighlightColourId, Colours::darkgrey);
@@ -814,7 +827,7 @@ CircleEditor::CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode
     addAndMakeVisible(cxLabel.get());
 
     cxSlider = std::make_unique<Slider>("CXSlider");
-    cxSlider->setLookAndFeel(sliderLAF);
+    cxSlider->setLookAndFeel(sliderLAF.get());
     cxSlider->setSliderStyle(Slider::LinearHorizontal);
     cxSlider->setTextBoxStyle(Slider::TextBoxLeft, false, 40, 25);
     cxSlider->setRange(0, 100, 1);
@@ -829,7 +842,7 @@ CircleEditor::CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode
     addAndMakeVisible(cyLabel.get());
 
     cySlider = std::make_unique<Slider>("CYSlider");
-    cySlider->setLookAndFeel(sliderLAF);
+    cySlider->setLookAndFeel(sliderLAF.get());
     cySlider->setSliderStyle(Slider::LinearHorizontal);
     cySlider->setTextBoxStyle(Slider::TextBoxLeft, false, 40, 25);
     cySlider->setRange(0, 100, 1);
@@ -844,7 +857,7 @@ CircleEditor::CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode
     addAndMakeVisible(cradLabel.get());
 
     cradSlider = std::make_unique<Slider>("CRadSlider");
-    cradSlider->setLookAndFeel(sliderLAF);
+    cradSlider->setLookAndFeel(sliderLAF.get());
     cradSlider->setSliderStyle(Slider::LinearHorizontal);
     cradSlider->setTextBoxStyle(Slider::TextBoxLeft, false, 40, 25);
     cradSlider->setRange(1, 100, 1);
@@ -871,6 +884,13 @@ CircleEditor::CircleEditor(TrackingStimulatorCanvas* stimCanvas, bool isEditMode
 
         setSize(240, 180);
     }
+}
+
+CircleEditor::~CircleEditor()
+{
+    cxSlider->setLookAndFeel(nullptr);
+    cySlider->setLookAndFeel(nullptr);
+    cradSlider->setLookAndFeel(nullptr);
 }
 
 void CircleEditor::updateCircleParams()
@@ -1008,22 +1028,30 @@ void DisplayAxes::paint(Graphics& g)
         Colour source_colour = color_palette[source.color];
         g.setColour(source_colour);
 
+        //std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
+        
         // Plot trajectory as lines
-        if (m_positions[selectedSource].size () >= 2)
+        if (m_positions[selectedSource].size() >= 2)
         {
-            for(auto it = m_positions[selectedSource].begin()+1; it != m_positions[selectedSource].end(); it++)
+            for (auto it = m_positions[selectedSource].begin()+1; it != m_positions[selectedSource].end(); it++)
             {
                 TrackingPosition position = *it;
                 TrackingPosition prev_position = *(it-1);
 
+               // std::cout << "Point" << std::endl;
+
                 // if tracking data are empty positions are set to -1
                 if (prev_position.x != -1 && prev_position.y != -1)
                 {
-                    float x = getWidth()*position.x;
-                    float y = getHeight()*position.y;
-                    float x_prev = getWidth()*prev_position.x;
-                    float y_prev = getHeight()*prev_position.y;
+                    float x = getWidth() * position.x; 
+                    float y = getHeight() * position.y; 
+                    float x_prev = getWidth() * prev_position.x;
+                    float y_prev = getHeight() * prev_position.y;
                     g.drawLine(x_prev, y_prev, x, y, 5.0f);
+                   // std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
+                }
+                else {
+                   // std::cout << "Not drawing line" << std::endl;
                 }
             }
             // Plot current position as ellipse
@@ -1034,6 +1062,11 @@ void DisplayAxes::paint(Graphics& g)
                 float y = getHeight()*position.y;
 
                 g.fillEllipse(x - 0.01*getHeight(), y - 0.01*getHeight(), 0.02*getHeight(), 0.02*getHeight());
+
+                //std::cout << "Drawing point." << std::endl;
+            }
+            else {
+                //std::cout << "Not drawing point" << std::endl;
             }
         }
     }
