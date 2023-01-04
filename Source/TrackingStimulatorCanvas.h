@@ -74,6 +74,8 @@ public:
     void beginAnimation() override;
     void endAnimation() override;
 
+    void saveCustomParametersToXml(XmlElement* xml) override;
+    void loadCustomParametersFromXml(XmlElement* xml) override;
 
     void createCircle(float xVal, float yVal, float rad);
     void selectCircle(int circle);

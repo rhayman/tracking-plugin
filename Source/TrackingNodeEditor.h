@@ -44,6 +44,12 @@ public:
 
 	void comboBoxChanged(ComboBox* cb) override;
 
+	/** Saves tracking node editor parameters */
+    void saveVisualizerEditorParameters(XmlElement* xml) override;
+
+    /** Loads tracking node editor parameters */
+    void loadVisualizerEditorParameters(XmlElement* xml) override;
+
 	int getSelectedSource() { return selectedSource; }
 
 private:

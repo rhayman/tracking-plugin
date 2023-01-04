@@ -739,6 +739,102 @@ void TrackingStimulatorCanvas::endAnimation()
 }
 
 
+void TrackingStimulatorCanvas::saveCustomParametersToXml(XmlElement* xml)
+{
+    XmlElement* state = xml->createNewChildElement("TRACKING_STIMULATOR");
+    state->setAttribute("Source", selectedSource);
+    state->setAttribute("Output", outputChan);
+
+    // save circles
+    XmlElement* circles = new XmlElement("CIRCLES");
+    for (int i=0; i < processor->getCircles().size(); i++)
+    {
+        XmlElement* circ = new XmlElement(String("Circles_")+=String(i));
+        auto circle = processor->getCircles()[i];
+        circ->setAttribute("id", i);
+        circ->setAttribute("xpos", circle.getX());
+        circ->setAttribute("ypos", circle.getY());
+        circ->setAttribute("rad", circle.getRad());
+        circ->setAttribute("on", circle.getOn());
+
+        circles->addChildElement(circ);
+    }
+    circles->setAttribute("selectedCircle", processor->getSelectedCircle());
+    
+
+    // save stimulator conf
+    XmlElement* stim = new XmlElement("STIM_PARAMETERS");
+
+    stim->setAttribute("duration", durationEditLabel->getText());
+    stim->setAttribute("freq", fmaxEditLabel->getText());
+    stim->setAttribute("sd", sdevEditLabel->getText());
+    stim->setAttribute("stim-mode", processor->getStimMode());
+
+    state->addChildElement(circles);
+    state->addChildElement(stim);
+}
+
+void TrackingStimulatorCanvas::loadCustomParametersFromXml(XmlElement* xml)
+{
+    auto* mainNode =  xml->getChildByName("TRACKING_STIMULATOR");
+
+    if(mainNode != nullptr)
+    {
+        selectedSource = mainNode->getIntAttribute("Source");
+        processor->setSelectedStimSource(selectedSource);
+        update();
+
+        outputChan = mainNode->getIntAttribute("Output");
+        processor->setOutputChan(outputChan);
+        
+        for(auto* childElement : mainNode->getChildIterator())
+        {
+            if (childElement->hasTagName("CIRCLES"))
+            {
+                for(auto* circleXml : childElement->getChildIterator())
+                {
+                    int id = circleXml->getIntAttribute("id");
+                    double cx = circleXml->getDoubleAttribute("xpos");
+                    double cy = circleXml->getDoubleAttribute("ypos");
+                    double crad = circleXml->getDoubleAttribute("rad");
+                    bool on = circleXml->getIntAttribute("on");
+
+                    processor->addCircle(StimCircle(cx, cy, crad, on));
+                }
+
+                uploadCircles();
+                int selectedCircle = childElement->getIntAttribute("selectedCircle");
+                if(selectedCircle >= 0)
+                    circlesButton[selectedCircle]->triggerClick();
+            }
+            if (childElement->hasTagName("STIMULATION"))
+            {
+                durationEditLabel->setText(childElement->getStringAttribute("duration"), sendNotification);
+                fmaxEditLabel->setText(childElement->getStringAttribute("freq"), sendNotification);
+                sdevEditLabel->setText(childElement->getStringAttribute("sd"), sendNotification);
+
+                stim_mode currentMode = (stim_mode) childElement->getIntAttribute("stim-mode");
+
+                switch (currentMode)
+                {
+                case stim_mode::uniform:
+                    uniformButton->setToggleState(true, sendNotification);
+                    break;
+
+                case stim_mode::gauss:
+                    gaussianButton->setToggleState(true, sendNotification);
+                    break;
+
+                case stim_mode::ttl:
+                    ttlButton->setToggleState(true, sendNotification);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
 int TrackingStimulatorCanvas::getSelectedSource() const
 {
     return selectedSource;

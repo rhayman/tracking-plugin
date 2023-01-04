@@ -108,51 +108,10 @@ void TrackingNode::addSource(String srcName, int port, String address, String co
     if (address.isEmpty())
         address = String(DEF_ADDRESS);
 
-    LOGC("adding module");
+    LOGD("Adding tacking module...");
     auto tm = new TrackingModule(srcName, port, address, color, this);
     trackers.add(tm);
-    LOGC("added module");
-
-    // EventChannel *events;
-    // EventChannel::Settings s{EventChannel::Type::TTL,
-    //                         "Tracking data",
-    //                         "Tracking data received from Bonsai. x, y, width, height",
-    //                         "external.tracking.rawData",
-    //                         getDataStream(stream->getStreamId)};
-    // LOGC("creating event channel");
-    // events = new EventChannel(s);
-    // String id = "trackingsource";
-    // events->setIdentifier(id);
-    // events->addProcessor(processorInfo.get());
-    // LOGC("added processor");
-    // // add metadata
-    // meta_name = new MetadataValue(*desc_name);
-    // meta_name->setValue(moduleName);
-    
-    // meta_port = new MetadataValue(*desc_port);
-    // meta_port->setValue(String(port));
-    // meta_address = new MetadataValue(*desc_address);
-    // meta_address->setValue(address);
-
-    // // add some dummy pos data for now
-    // Array<float> pos;
-    // pos.add(-1);
-    // pos.add(-1);
-    // pos.add(-1);
-    // pos.add(-1);
-    // meta_position = new MetadataValue(*desc_position);
-    // meta_position->setValue(pos);
-    // events->addMetadata(desc_position.get(), meta_position);
-    // events->addMetadata(desc_name.get(), meta_name);
-    // events->addMetadata(desc_address.get(), meta_address);
-    // events->addMetadata(desc_port.get(), meta_port);
-    // events->addEventMetadata(*desc_position);
-    // events->addEventMetadata(*desc_port);
-    // events->addEventMetadata(*desc_address);
-    // eventChannels.add(events);
-    // tm->eventChannel = events;
-    // settings[stream->getStreamId()]->trackers.add(tm);
-    // CoreServices::updateSignalChain(getEditor());
+    LOGD("Added tracking module!");
 }
 
 void TrackingNode::removeSource(int index)
@@ -406,8 +365,6 @@ void TrackingNode::updateSettings()
         settings[stream->getStreamId()]->eventChannelPtr = eventChannels.getLast();
     }
 
-    parameterValueChanged(getParameter("Port"));
-    parameterValueChanged(getParameter("Address"));
 }
 
 void TrackingNode::triggerEvent()

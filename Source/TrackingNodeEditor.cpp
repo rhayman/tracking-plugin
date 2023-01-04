@@ -68,10 +68,9 @@ TrackingNodeEditor::TrackingNodeEditor(GenericProcessor *parentNode)
     stimulateButton->setBounds(15, 95, 40, 20);
     stimulateButton->addListener(this);
     stimulateButton->setClickingTogglesState(true); // makes the button toggle its state when clicked
-    stimulateButton->setButtonText("OFF");
     stimulateButton->setColour(TextButton::buttonOnColourId, Colours::yellow);
-    // stimulateButton->setColour(TextButton::buttonColourId, Colours::grey);
     stimulateButton->setToggleState(true, dontSendNotification);
+    stimulateButton->setButtonText("ON");
     addAndMakeVisible(stimulateButton.get()); // makes the button a child component of the editor and makes it visible
 }
 
@@ -146,6 +145,65 @@ void TrackingNodeEditor::comboBoxChanged(ComboBox* c)
         selectedSource = c->getSelectedId() - 1;
         updateCustomView();
     }
+}
+
+void TrackingNodeEditor::saveVisualizerEditorParameters(XmlElement* xml)
+{
+    XmlElement* mainNode = xml->createNewChildElement ("TRACKING_SOURCES");
+    mainNode->setAttribute("selectedID", selectedSource);
+
+    TrackingNode *processor = (TrackingNode *)getProcessor();
+
+    for (int i = 0; i < trackingSourceSelector->getNumItems(); i++)
+    {
+        XmlElement* source = new XmlElement("Source" + String(i+1));
+        source->setAttribute ("port", processor->getPort(i));
+        source->setAttribute ("address", processor->getAddress(i));
+        source->setAttribute ("color", processor->getColor(i));
+        mainNode->addChildElement(source);
+    }
+
+    XmlElement* stimElement = xml->createNewChildElement ("STIMULATION");
+    stimElement->setAttribute("status", stimulateButton->getToggleState());
+}
+
+void TrackingNodeEditor::loadVisualizerEditorParameters(XmlElement* xml)
+{
+    TrackingNode *processor = (TrackingNode *)getProcessor();
+    auto* mainNode =  xml->getChildByName("TRACKING_SOURCES");
+
+    if(mainNode != nullptr)
+    {
+        for(auto* source : mainNode->getChildIterator())
+        {
+            // add a tracking source
+            int newId = 1;
+            if (trackingSourceSelector->getNumItems() > 0)
+            {
+                newId = trackingSourceSelector->getItemId(trackingSourceSelector->getNumItems() - 1) + 1;
+            }
+            
+            String srcName = "Tracking source " + String(newId);
+            
+            processor->addSource(srcName,
+                                 source->getIntAttribute("port"),
+                                 source->getStringAttribute("address"),
+                                 source->getStringAttribute("color"));
+
+            trackingSourceSelector->addItem(srcName, newId);
+        }
+
+        selectedSource = mainNode->getIntAttribute("selectedID");
+        trackingSourceSelector->setSelectedId(selectedSource + 1, dontSendNotification);
+
+        updateCustomView();
+
+        if(canvas)
+            canvas->update();
+    }
+
+    XmlElement* stimElement = xml->getChildByName ("STIMULATION");
+    stimulateButton->setToggleState(stimElement->getBoolAttribute("status"), sendNotification);
 }
 
 void TrackingNodeEditor::updateCustomView()
