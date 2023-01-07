@@ -533,14 +533,15 @@ void TrackingStimulatorCanvas::buttonClicked(Button* button)
         if (processor->getSelectedCircle() != -1)
         {
             m_onoff = onButton->getToggleState();
+            
             if(m_onoff)
-            {
                 onButton->setButtonText("Enabled");
-            }
             else
-            {
                 onButton->setButtonText("Disabled");
-            }
+
+            m_current_cx = processor->getCircles()[processor->getSelectedCircle()].getX();
+            m_current_cy = processor->getCircles()[processor->getSelectedCircle()].getY();
+            m_current_crad = processor->getCircles()[processor->getSelectedCircle()].getRad();
             editSelectedCircle(m_current_cx, m_current_cy, m_current_crad);
         }
         else
