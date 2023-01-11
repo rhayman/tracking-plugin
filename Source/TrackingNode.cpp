@@ -80,7 +80,7 @@ AudioProcessorEditor *TrackingNode::createEditor()
     return editor.get();
 }
 
-void TrackingNode::addSource(String srcName, int port, String address, String color)
+bool TrackingNode::addSource(String srcName, int port, String address, String color)
 {
     if (port == 0)
     {
@@ -98,20 +98,32 @@ void TrackingNode::addSource(String srcName, int port, String address, String co
         }
         else
         {
-            port = DEF_PORT;
+            port = (int)getParameter("Port")->getValue();
         }
     }
     
     if (color.isEmpty())
-        color = String(DEF_COLOR);
+        color = getParameter("Color")->getValueAsString();
 
     if (address.isEmpty())
-        address = String(DEF_ADDRESS);
+        address = getParameter("Address")->getValueAsString();
 
     LOGD("Adding tacking module...");
-    auto tm = new TrackingModule(srcName, port, address, color, this);
-    trackers.add(tm);
-    LOGD("Added tracking module!");
+    auto* tm = new TrackingModule(srcName, port, address, color, this);
+    
+    if(tm->m_server->isBoundAndRunning())
+    {
+        trackers.add(tm);
+        LOGD("Added tracking module!");
+
+        return true;
+    }
+    else
+    {
+        LOGD("Unable to bind to port: ", port);
+        delete tm;
+        return false;
+    }
 }
 
 void TrackingNode::removeSource(int index)
@@ -586,36 +598,6 @@ bool TrackingNode::stopAcquisition()
     return true;
 }
 
-// TODO: Both I/O methods need finishing
-void TrackingNode::saveCustomParametersToXml(XmlElement *parentElement)
-{
-    // for (auto stream : getDataStreams())
-    // {
-    //     auto *moduleXml = parentElement->createNewChildElement("Tracking_Node");
-    //     TrackingNodeSettings *module = settings[stream->getStreamId()];
-    //     for (auto tracker : module->trackers) {
-    //         moduleXml->setAttribute("Name", tracker->m_name);
-    //         moduleXml->setAttribute("Port", tracker->m_port);
-    //         moduleXml->setAttribute("Address", tracker->m_address);
-    //     }
-    // }
-}
-
-void TrackingNode::loadCustomParametersFromXml(XmlElement *xml)
-{
-    // for (auto *moduleXml : xml->getChildIterator())
-    // {
-    //     if (moduleXml->hasTagName("Tracking_Node"))
-    //     {
-    //         String name = moduleXml->getStringAttribute("Name", "Tracking source 1");
-    //         String address = moduleXml->getStringAttribute("Address", "/red");
-    //         String port = moduleXml->getStringAttribute("Port", "27020");
-
-    //         addTracker(name, port, address);
-    //     }
-    // }
-}
-
 
 // Class TrackingQueue methods
 TrackingQueue::TrackingQueue()
@@ -670,6 +652,17 @@ TrackingServer::TrackingServer(int port, String address, TrackingNode *processor
     : Thread("OscListener Thread"), m_incomingPort(port), m_address(address), m_processor(processor)
 {
     LOGC("Creating OSC server on port ", port, " with address ", address);
+
+    try
+    {
+        m_listeningSocket = std::make_unique<UdpListeningReceiveSocket>(IpEndpointName("localhost", m_incomingPort), this);
+        CoreServices::sendStatusMessage("OSC Server started!");
+    }
+    catch (const std::exception &e)
+    {
+        CoreServices::sendStatusMessage("OSC Server failed to start!");
+        LOGC("Exception in creating TrackingServer(): ", String(e.what()));
+    }
 }
 
 TrackingServer::~TrackingServer()
@@ -678,7 +671,6 @@ TrackingServer::~TrackingServer()
     stop();
     stopThread(-1);
     waitForThreadToExit(-1);
-    delete m_listeningSocket;
 }
 
 void TrackingServer::ProcessMessage(const osc::ReceivedMessage &receivedMessage,
@@ -744,18 +736,8 @@ void TrackingServer::ProcessMessage(const osc::ReceivedMessage &receivedMessage,
 void TrackingServer::run()
 {
     sleep(1000);
-    CoreServices::sendStatusMessage("OSC Server is running");
-    // Start the oscpack OSC Listener Thread
-    try
-    {
-        m_listeningSocket = new UdpListeningReceiveSocket(IpEndpointName("localhost", m_incomingPort), this);
-        sleep(1000);
+    if(m_listeningSocket != nullptr)
         m_listeningSocket->Run();
-    }
-    catch (const std::exception &e)
-    {
-        LOGC("Exception in TrackingServer::run(): ", String(e.what()));
-    }
 }
 
 void TrackingServer::stop()
@@ -766,7 +748,16 @@ void TrackingServer::stop()
         return;
     }
 
-    m_listeningSocket->AsynchronousBreak();
+    if(m_listeningSocket != nullptr)
+        m_listeningSocket->AsynchronousBreak();
+}
+
+bool TrackingServer::isBoundAndRunning()
+{
+    if(m_listeningSocket != nullptr)
+        return m_listeningSocket->IsBound();
+    else
+        return false;
 }
 
 

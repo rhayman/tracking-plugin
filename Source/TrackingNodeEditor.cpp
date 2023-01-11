@@ -95,16 +95,18 @@ void TrackingNodeEditor::buttonClicked(Button *btn)
         
         String txt = "Tracking source " + String(newId);
         
-        processor->addSource(txt);
+        if(processor->addSource(txt)) // check if adding the source was successfull
+        {
 
-        trackingSourceSelector->addItem(txt, newId);
-        trackingSourceSelector->setSelectedId(newId, dontSendNotification);
-        selectedSource = newId - 1;
+            trackingSourceSelector->addItem(txt, newId);
+            trackingSourceSelector->setSelectedId(newId, dontSendNotification);
+            selectedSource = newId - 1;
 
-        updateCustomView();
+            updateCustomView();
 
-        if(canvas)
-            canvas->update();
+            if(canvas)
+                canvas->update();
+        }
     }
     else if (btn == minusButton.get())
     {

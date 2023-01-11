@@ -97,6 +97,8 @@ public:
 	void run();
 	void stop();
 
+	bool isBoundAndRunning();
+
 protected:
 	virtual void ProcessMessage(const osc::ReceivedMessage &m, const IpEndpointName &);
 
@@ -107,7 +109,7 @@ private:
 	int m_incomingPort;
 	String m_address;
 
-	UdpListeningReceiveSocket *m_listeningSocket;
+	std::unique_ptr<UdpListeningReceiveSocket> m_listeningSocket;
 	TrackingNode* m_processor;
 };
 
@@ -241,7 +243,8 @@ public:
 
 	bool stopAcquisition() override;
 
-	void addSource(String name, int port=0, String address="", String color="");
+	// Creates a tracking module and adds a tracking source
+	bool addSource(String name, int port=0, String address="", String color="");
 
 	void removeSource(int index);
 
@@ -257,14 +260,6 @@ public:
 		The process method is called every time a new data buffer is available.
 		Visualizer plugins typically use this method to send data to the canvas for display purposes */
 	void process(AudioBuffer<float> &buffer) override;
-
-	/** Saving custom settings to XML. This method is not needed to save the state of
-		Parameter objects */
-	void saveCustomParametersToXml(XmlElement *parentElement) override;
-
-	/** Load custom settings from XML. This method is not needed to load the state of
-		Parameter objects*/
-	void loadCustomParametersFromXml(XmlElement *parentElement) override;
 
 	// receives a message from the osc server
 	void receiveMessage(int port, String address, const TrackingData &message);
