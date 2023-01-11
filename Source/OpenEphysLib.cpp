@@ -43,7 +43,7 @@ extern "C" EXPORT void getLibInfo(Plugin::LibraryInfo *info)
 	The GUI refueses to load plugins with mismatched API versions */
 	info->apiVersion = PLUGIN_API_VER;
 	info->name = "Tracking Plugin";	// <---- update
-	info->libVersion = "0.6.0"; // <---- update
+	info->libVersion = "0.2.0"; // <---- update
 	info->numPlugins = NUM_PLUGINS;
 }
 
