@@ -1,5 +1,7 @@
 # Tracking Plugin
 
+![Tracking Plugin Editor](https://open-ephys.github.io/gui-docs/_images/trackingplugin-01.png)
+
 Uses 2D position data from Bonsai to deliver closed-loop stimulation.
 
 The original implementation of this plugin is described in Buccino et al. (2018) ["Open source modules for tracking animal behavior and closed-loop stimulation based on Open Ephys and Bonsai"](http://iopscience.iop.org/article/10.1088/1741-2552/aacf45/meta) *J Neural Eng* **15** 055002.
