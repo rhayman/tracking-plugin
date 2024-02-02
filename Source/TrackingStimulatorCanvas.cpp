@@ -42,7 +42,7 @@ TrackingStimulatorCanvas::TrackingStimulatorCanvas(TrackingNode* node)
     , m_onoff(false)
     , m_isDeleting(true)
     , settingsWidth(250)
-    , settingsHeight(500)
+    , settingsHeight(600)
     , selectedSource(-1)
     , outputChan(0)
     , labelFont("Fira Sans", "SemiBold", 20.0f)
@@ -58,6 +58,7 @@ TrackingStimulatorCanvas::TrackingStimulatorCanvas(TrackingNode* node)
     setWantsKeyboardFocus(true);
     
     displayAxes = new DisplayAxes(node, this);
+    addAndMakeVisible(displayAxes);
 
     update();
 }
@@ -253,6 +254,34 @@ bool TrackingStimulatorCanvas::areThereCicles()
 
 void TrackingStimulatorCanvas::paint(Graphics& g)
 {
+    g.setColour(Colours::black); // background color
+    g.fillRect(0, 0, getWidth(), getHeight());
+        
+    g.setColour(Colour(125, 125, 125)); //settings menu background color
+    g.fillRoundedRectangle(getWidth() - settingsWidth - 10, 10, settingsWidth, settingsHeight - 20, 7.0f);
+
+	//std::cout << "Setting displayAxes bounds to " << plot_bottom_left_x << ", " << plot_bottom_left_y << ", " << camWidth << ", " << camHeight << std::endl;
+    displayAxes->repaint();
+}
+
+void TrackingStimulatorCanvas::resized()
+{
+
+    if(0.22*getWidth() < 150)
+        settingsWidth = 150;
+    else if(0.22*getWidth() > 300)
+        settingsWidth = 300;
+    else
+        settingsWidth = 0.22*getWidth();
+    
+    if(getHeight() < 600)
+        settingsHeight = 600;
+    else if(getHeight() > 800)
+        settingsHeight = 800;
+    else
+        settingsHeight = getHeight();
+
+    
     float plot_height = 0.98*getHeight();
     float plot_width = 0.75*getWidth();
     float plot_bottom_left_x = 0.01*getWidth();
@@ -272,40 +301,9 @@ void TrackingStimulatorCanvas::paint(Graphics& g)
         camHeight = camWidth / aC;
     }
 
-    g.setColour(Colours::black); // background color
-    g.fillRect(0, 0, getWidth(), getHeight());
-        
-    g.setColour(Colour(125, 125, 125)); //settings menu background color
-    g.fillRoundedRectangle(getWidth() - settingsWidth - 10, 10, settingsWidth, settingsHeight - 20, 7.0f);
-        
-    g.fillEllipse(getWidth() - 0.065*getWidth(), 0.41*getHeight(), 0.03*getWidth(), 0.03*getHeight());
-
+//    displayAxes->setBounds(int(0.01*getHeight()), int(0.01*getHeight()), int(0.98*getHeight()), int(0.98*getHeight()));
     displayAxes->setBounds(int(plot_bottom_left_x), int(plot_bottom_left_y),
                            int(camWidth), int(camHeight));
-
-	//std::cout << "Setting displayAxes bounds to " << plot_bottom_left_x << ", " << plot_bottom_left_y << ", " << camWidth << ", " << camHeight << std::endl;
-    displayAxes->repaint();
-}
-
-void TrackingStimulatorCanvas::resized()
-{
-
-    if(0.22*getWidth() < 150)
-        settingsWidth = 150;
-    else if(0.22*getWidth() > 300)
-        settingsWidth = 300;
-    else
-        settingsWidth = 0.22*getWidth();
-    
-    if(getHeight() < 500)
-        settingsHeight = 500;
-    else if(getHeight() > 800)
-        settingsHeight = 800;
-    else
-        settingsHeight = getHeight();
-
-//    displayAxes->setBounds(int(0.01*getHeight()), int(0.01*getHeight()), int(0.98*getHeight()), int(0.98*getHeight()));
-    addAndMakeVisible(displayAxes);
 
     sourcesLabel->setBounds(getWidth() - settingsWidth, 25, settingsWidth - 20, 25);
     availableSources->setBounds(getWidth() - settingsWidth, 60, settingsWidth - 20, 25);
@@ -336,14 +334,14 @@ void TrackingStimulatorCanvas::resized()
     gaussianButton->setBounds(getWidth() - (2*settingsWidth/3) - 5, 0.65*settingsHeight, settingsWidth / 3 - 5, 30);
     ttlButton->setBounds(getWidth() - (settingsWidth / 3) - 10, 0.65*settingsHeight, settingsWidth / 3 - 5, 30);
 
-    durationLabel->setBounds(getWidth() - settingsWidth, 0.7*settingsHeight, settingsWidth/2 - 20, 30);
-    durationEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.7*settingsHeight,settingsWidth/2 - 20, 30);
+    durationLabel->setBounds(getWidth() - settingsWidth, 0.71*settingsHeight, settingsWidth/2 - 20, 30);
+    durationEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.71*settingsHeight,settingsWidth/2 - 20, 30);
     
-    fmaxLabel->setBounds(getWidth() - settingsWidth, 0.75*settingsHeight, settingsWidth/2 - 20, 30);
-    fmaxEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.75*settingsHeight, settingsWidth/2 - 20, 30);
+    fmaxLabel->setBounds(getWidth() - settingsWidth, 0.765*settingsHeight, settingsWidth/2 - 20, 30);
+    fmaxEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.765*settingsHeight, settingsWidth/2 - 20, 30);
     
-    sdevLabel->setBounds(getWidth() - settingsWidth, 0.8*settingsHeight, settingsWidth/2 - 20, 30);
-    sdevEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.8*settingsHeight, settingsWidth/2 - 20, 30);
+    sdevLabel->setBounds(getWidth() - settingsWidth, 0.82*settingsHeight, settingsWidth/2 - 20, 30);
+    sdevEditLabel->setBounds(getWidth() - (settingsWidth / 2), 0.82*settingsHeight, settingsWidth/2 - 20, 30);
 
     simTrajectoryButton->setBounds(getWidth() - settingsWidth, settingsHeight - 50, settingsWidth/2 - 20, 30);
     clearButton->setBounds(getWidth() - (settingsWidth / 2), settingsHeight - 50, settingsWidth/2 - 20, 30);
@@ -704,23 +702,15 @@ void TrackingStimulatorCanvas::refresh()
         {
             
             
-            TrackingSources& source = processor->getTrackingSource(i);
-            TrackingPosition currPos;
-            currPos.x = source.x_pos;
-            currPos.y = source.y_pos;
-            currPos.width = source.width;
-            currPos.height = source.height;
-
-            //std::cout << "Adding position for source " << i << ": " <<
-            //    currPos.x << ", " <<
-            //    currPos.y << ", " <<
-            //    currPos.width << ", " <<
-            //    currPos.height 
-            //    << std::endl;
-
-            displayAxes->addPosition(i, currPos);
+            auto positionData = processor->getTrackingPositions(i);
+            
+            for (int j = 0; j < positionData.size(); j++)
+            {
+                displayAxes->addPosition(i, positionData[j]);
+            }
 
             // for now, just pick one w and h
+            TrackingSources& source = processor->getTrackingSource(i);
             m_height = source.width;
             m_width = source.height;
         }
