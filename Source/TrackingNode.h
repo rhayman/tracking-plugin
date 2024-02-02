@@ -145,6 +145,8 @@ public:
 	std::unique_ptr<TrackingQueue> m_messageQueue;
 	std::unique_ptr<TrackingServer> m_server;
 
+	std::vector<TrackingPosition> positionData;
+
 	TrackingSources source;
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingModule);
@@ -278,6 +280,9 @@ public:
 	int getNumSources();
 
 	TrackingSources &getTrackingSource(int i);
+
+	// Get the latest tracking positions 
+	std::vector<TrackingPosition> getTrackingPositions(int sourceIndex);
 
     void clearPositionUpdated();
     bool positionIsUpdated() const;

@@ -446,19 +446,26 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
 
     for (int i = 0; i < trackers.size(); ++i)
     {
-        auto *message = trackers[i]->m_messageQueue->pop();
-        if (!message)
-            continue;
+        while (true) {
+            auto *message = trackers[i]->m_messageQueue->pop();
+            if (!message)
+            {
+                trackers[i]->source.x_pos = trackers[i]->positionData.back().x;
+                trackers[i]->source.y_pos = trackers[i]->positionData.back().y;
+                trackers[i]->source.width = trackers[i]->positionData.back().width;
+                trackers[i]->source.height = trackers[i]->positionData.back().height;
+                break;
+            }
+
+            trackers[i]->positionData.push_back(message->position);
         
-        trackers[i]->source.x_pos = message->position.x;
-        trackers[i]->source.y_pos = message->position.y;
-        trackers[i]->source.width = message->position.width;
-        trackers[i]->source.height = message->position.height;
+        }
 
 		//std::cout << "Adding position: " << trackers[i]->source.x_pos << ", " << trackers[i]->source.y_pos << std::endl;
     }
 
     m_positionIsUpdated = true;
+    lock.exit();
 
     if (m_isOn && m_selectedStimSource != -1)
     {
@@ -522,7 +529,6 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
         m_previousTime = m_currentTime;
     }
 
-    lock.exit();
     messageReceived = false;
 }
 
@@ -547,10 +553,6 @@ void TrackingNode::receiveMessage(int port, String address, const TrackingData &
                 trackers[i]->m_messageQueue->clear();
                 CoreServices::sendStatusMessage("Clearing queue before start acquisition");
             }
-            // LOGC("m_positionIsUpdated: ", m_positionIsUpdated);
-            // m_positionIsUpdated = true;
-
-			//std::cout << "Acquisition is active, pushing message to queue" << std::endl;
 
             int64 ts = CoreServices::getSoftwareTimestamp();
 
@@ -571,8 +573,18 @@ TrackingSources& TrackingNode::getTrackingSource(int i)
         return trackers[i]->source;
 }
 
+std::vector<TrackingPosition> TrackingNode::getTrackingPositions(int i)
+{
+    if (i >= 0 && i < trackers.size())
+        return trackers[i]->positionData;
+}
+
 void TrackingNode::clearPositionUpdated()
 {
+    for (int i = 0; i < trackers.size(); ++i)
+    {
+        trackers[i]->positionData.clear();
+    }
     m_positionIsUpdated = false;
 }
 
