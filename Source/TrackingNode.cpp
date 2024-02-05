@@ -61,8 +61,6 @@ TrackingNode::TrackingNode()
     , m_stimFreq(DEF_FREQ)
     , m_stimSD(DEF_SD)
     , messageReceived(false)
-    , m_isRecordingTimeLogged(false)
-    , m_isAcquisitionTimeLogged(false)
 {
     addIntParameter(Parameter::GLOBAL_SCOPE, "Port", "Tracking source OSC port", DEF_PORT, 1024, 49151);
 
@@ -146,6 +144,7 @@ void TrackingNode::setPort (int i, int port)
     {
         auto module = new TrackingModule(name, port, address, color, this);
         trackers.set(i, module, true);
+        LOGC("Set port to ", port, " for ", name);
     }
     catch (const std::runtime_error& e)
     {
@@ -172,6 +171,7 @@ void TrackingNode::setAddress (int i, String address)
     }
 
     trackers[i]->m_address = address;
+    LOGC("Set address to ", address, " for ", trackers[i]->m_name);
 }
 
 String TrackingNode::getAddress(int i)
@@ -450,10 +450,13 @@ void TrackingNode::process(AudioBuffer<float> &buffer)
             auto *message = trackers[i]->m_messageQueue->pop();
             if (!message)
             {
-                trackers[i]->source.x_pos = trackers[i]->positionData.back().x;
-                trackers[i]->source.y_pos = trackers[i]->positionData.back().y;
-                trackers[i]->source.width = trackers[i]->positionData.back().width;
-                trackers[i]->source.height = trackers[i]->positionData.back().height;
+                if (!trackers[i]->positionData.empty())
+                {
+                    trackers[i]->source.x_pos = trackers[i]->positionData.back().x;
+                    trackers[i]->source.y_pos = trackers[i]->positionData.back().y;
+                    trackers[i]->source.width = trackers[i]->positionData.back().width;
+                    trackers[i]->source.height = trackers[i]->positionData.back().height;
+                }
                 break;
             }
 
@@ -545,15 +548,6 @@ void TrackingNode::receiveMessage(int port, String address, const TrackingData &
 
         if (CoreServices::getAcquisitionStatus())
         {
-            if (!m_isAcquisitionTimeLogged)
-            {
-                m_startingAcqTimeMillis = Time::currentTimeMillis();
-                m_isAcquisitionTimeLogged = true;
-                //std::cout << "Starting Acquisition at Ts: " << m_startingAcqTimeMillis << std::endl;
-                trackers[i]->m_messageQueue->clear();
-                CoreServices::sendStatusMessage("Clearing queue before start acquisition");
-            }
-
             int64 ts = CoreServices::getSoftwareTimestamp();
 
             TrackingData outputMessage = message;
@@ -561,8 +555,6 @@ void TrackingNode::receiveMessage(int port, String address, const TrackingData &
             trackers[i]->m_messageQueue->push(outputMessage);
             messageReceived = true;
         }
-        else
-            m_isAcquisitionTimeLogged = false;
     }
     lock.exit();
 }
@@ -600,7 +592,12 @@ int TrackingNode::getNumSources()
 
 bool TrackingNode::startAcquisition()
 {
-	((TrackingNodeEditor*)getEditor())->enable();
+    for (int i = 0; i < trackers.size(); i++)
+        trackers[i]->m_messageQueue->clear();
+
+    LOGC("Clearing tracking message queue(s) before starting acquisition");
+
+    ((TrackingNodeEditor*)getEditor())->enable();
     return true;
 }
 

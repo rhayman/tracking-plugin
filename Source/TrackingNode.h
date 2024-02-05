@@ -335,14 +335,10 @@ public:
 							 "yellow" };
 
 private:
-	int64 m_startingRecTimeMillis;
-	int64 m_startingAcqTimeMillis;
 
 	CriticalSection lock;
 
 	bool m_positionIsUpdated;
-	bool m_isRecordingTimeLogged;
-	bool m_isAcquisitionTimeLogged;
 	bool m_isInitialized = false;
 	bool messageReceived;
 
