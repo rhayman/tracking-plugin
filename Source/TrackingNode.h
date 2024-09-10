@@ -359,7 +359,7 @@ private:
 
   void triggerEvent();
 
-  void triggerPosEvent(TrackingPosition, TrackingSources);
+  void triggerPosEvent(TrackingPosition, uint64, TrackingSources);
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackingNode);
 };

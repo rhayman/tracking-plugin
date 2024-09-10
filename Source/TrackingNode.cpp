@@ -252,6 +252,7 @@ void TrackingNode::updateSettings() {
   settings.update(getDataStreams());
 
   for (auto stream : getDataStreams()) {
+      LOGC("stream id: ", stream->getStreamId());
     EventChannel *ttlChan;
     EventChannel::Settings ttlChanSettings{
         EventChannel::Type::TTL, "Tracking stimulation output",
@@ -268,24 +269,33 @@ void TrackingNode::updateSettings() {
     EventChannel::Settings posChanSettings{
         EventChannel::Type::CUSTOM, "Position tracking output",
         "Captures x,y position for each captured frame", "position event",
-        getDataStream(stream->getStreamId())};
+        getDataStream(stream->getStreamId()),8,EventChannel::BinaryDataType::FLOAT_ARRAY};
     posChan = new EventChannel(posChanSettings);
     eventChannels.add(posChan);
     eventChannels.getLast()->addProcessor(processorInfo.get());
     settings[stream->getStreamId()]->posEventChannelPtr =
         eventChannels.getLast();
+
   }
 }
 
-void TrackingNode::triggerPosEvent(TrackingPosition posdata,
+void TrackingNode::triggerPosEvent(TrackingPosition posdata, uint64 timestamp,
                                    TrackingSources source) {
   // TODO: will need to iterate over the array of trackers (called trackers)
   // and emit Custom events containing the position data
+
   for (auto stream : getDataStreams()) {
     int64 startSampleNum = getFirstSampleNumberForBlock(stream->getStreamId());
     int nSamples = getNumSamplesInBlock(stream->getStreamId());
-    auto settingsModule = settings[stream->getStreamId()];
 
+    setTimestampAndSamples(startSampleNum,
+        timestamp,
+        nSamples,
+        stream->getStreamId());
+
+    auto settingsModule = settings[stream->getStreamId()];
+    /*
+    LOGD("before metadata");
     MetadataValueArray metadata;
     auto desc = MetadataDescriptor{
         MetadataDescriptor::MetadataType::CHAR, 15, String("color"),
@@ -300,12 +310,12 @@ void TrackingNode::triggerPosEvent(TrackingPosition posdata,
     auto name = MetadataValue(desc);
     name.setValue(source.name);
     metadata.add(name);
-
-    const EventChannel *posChan =
-        settings[stream->getStreamId()]->posEventChannelPtr;
+    */
+    float pos[4] = { posdata.x, posdata.y,posdata.width,posdata.height };
     BinaryEventPtr event = BinaryEvent::createBinaryEvent(
-        posChan, startSampleNum, reinterpret_cast<uint8_t *>(&posdata),
-        sizeof(TrackingPosition), metadata);
+        settingsModule->posEventChannelPtr, timestamp, pos,
+        sizeof(float)*4);
+    LOGC("pos event x: ", pos[0]);
     addEvent(event, startSampleNum);
   }
 }
@@ -390,7 +400,7 @@ void TrackingNode::process(AudioBuffer<float> &buffer) {
 
       trackers[i]->positionData.push_back(message->position);
 
-      triggerPosEvent(message->position, trackers[i]->source);
+      triggerPosEvent(message->position, message->timestamp, trackers[i]->source);
     }
 
     // std::cout << "Adding position: " << trackers[i]->source.x_pos << ", " <<
