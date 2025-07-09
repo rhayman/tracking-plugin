@@ -44,12 +44,6 @@ TrackingNode::TrackingNode()
 
 void TrackingNode::registerParameters()
 {
-    addIntParameter (Parameter::PROCESSOR_SCOPE, "Port", "Port", "Tracking source OSC port", DEF_PORT, 1024, 49151);
-
-    addStringParameter (Parameter::PROCESSOR_SCOPE, "Address", "Address", "Tracking source OSC address", DEF_ADDRESS);
-
-    addCategoricalParameter (Parameter::PROCESSOR_SCOPE, "Color", "Color", "Path color to be displayed", colors, 0);
-
     addBooleanParameter (Parameter::PROCESSOR_SCOPE, "StimOn", "Stim", "Toggle stimulation", true);
 }
 
@@ -61,6 +55,7 @@ AudioProcessorEditor* TrackingNode::createEditor()
 
 bool TrackingNode::addSource (String srcName, int port, String address, String color)
 {
+    auto trackingEditor = (TrackingNodeEditor*) getEditor();
     if (port == 0)
     {
         auto nTrackers = trackers.size();
@@ -77,15 +72,15 @@ bool TrackingNode::addSource (String srcName, int port, String address, String c
         }
         else
         {
-            port = (int) getParameter ("Port")->getValue();
+            port = trackingEditor->getPort();
         }
     }
 
     if (color.isEmpty())
-        color = getParameter ("Color")->getValueAsString();
+        color = trackingEditor->getColor();
 
     if (address.isEmpty())
-        address = getParameter ("Address")->getValueAsString();
+        address = trackingEditor->getAddress();
 
     LOGD ("Adding tacking module...");
     auto* tm = new TrackingModule (srcName, port, address, color, this);
@@ -265,6 +260,7 @@ int TrackingNode::getSelectedStimSource() const
 
 void TrackingNode::setSelectedStimSource (int source)
 {
+    LOGD ("Setting selected stim source to ", source);
     m_selectedStimSource = source;
 }
 
@@ -331,24 +327,7 @@ int TrackingNode::isPositionWithinCircles (float x, float y)
 
 void TrackingNode::parameterValueChanged (Parameter* param)
 {
-    auto trackingEditor = (TrackingNodeEditor*) getEditor();
-
-    if (param->getName().equalsIgnoreCase ("Port"))
-    {
-        int port = static_cast<IntParameter*> (param)->getIntValue();
-        setPort (trackingEditor->getSelectedSource(), port);
-    }
-    else if (param->getName().equalsIgnoreCase ("Address"))
-    {
-        String address = param->getValueAsString();
-        setAddress (trackingEditor->getSelectedSource(), address);
-    }
-    else if (param->getName().equalsIgnoreCase ("Color"))
-    {
-        int colorIndex = static_cast<CategoricalParameter*> (param)->getSelectedIndex();
-        setColor (trackingEditor->getSelectedSource(), colors[colorIndex]);
-    }
-    else if (param->getName().equalsIgnoreCase ("StimOn"))
+    if (param->getName().equalsIgnoreCase ("StimOn"))
     {
         bool stimOn = static_cast<BooleanParameter*> (param)->getBoolValue();
         if (stimOn)

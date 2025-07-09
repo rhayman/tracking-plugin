@@ -29,7 +29,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 class TrackingNodeEditor : public VisualizerEditor,
                            public Button::Listener,
-                           public ComboBox::Listener
+                           public ComboBox::Listener,
+                           public Label::Listener
 {
 public:
     /** Constructor */
@@ -40,9 +41,14 @@ public:
 
     Visualizer* createNewCanvas() override;
 
+    /** Called when a button is clicked */
     void buttonClicked (Button* button) override;
 
+    /** Called when a combo box selection has changed */
     void comboBoxChanged (ComboBox* cb) override;
+
+    /** Called when a label's text has changed */
+    void labelTextChanged (Label* label) override;
 
     /** Saves tracking node editor parameters */
     void saveVisualizerEditorParameters (XmlElement* xml) override;
@@ -50,18 +56,37 @@ public:
     /** Loads tracking node editor parameters */
     void loadVisualizerEditorParameters (XmlElement* xml) override;
 
+    /** Returns the selected source index */
     int getSelectedSource() { return selectedSource; }
+
+    /** Returns the selected port */
+    int getPort();
+
+    /** Returns the selected address */
+    String getAddress();
+
+    /** Returns the selected color */
+    String getColor();
 
 private:
     std::unique_ptr<UtilityButton> plusButton;
     std::unique_ptr<UtilityButton> minusButton;
     std::unique_ptr<Label> sourceLabel;
     std::unique_ptr<ComboBox> trackingSourceSelector;
-    std::unique_ptr<Label> stimLabel;
-    std::unique_ptr<TextButton> stimulateButton;
+
+    std::unique_ptr<Label> portLabel;
+    std::unique_ptr<CustomTextBox> portEditor;
+    std::unique_ptr<Label> addressLabel;
+    std::unique_ptr<CustomTextBox> addressEditor;
+    std::unique_ptr<Label> colorLabel;
+    std::unique_ptr<ComboBox> colorSelector;
 
     int selectedSource;
 
+    int port;
+    String address;
+
+    /** Updates the editor's UI components to match the current state */
     void updateCustomView() override;
 
     /** Generates an assertion if this class leaks */

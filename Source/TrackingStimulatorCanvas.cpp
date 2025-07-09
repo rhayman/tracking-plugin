@@ -661,7 +661,11 @@ void TrackingStimulatorCanvas::updateSettings()
         String name = source.name;
         availableSources->addItem (name, nextItem++);
     }
-    availableSources->setSelectedId (processor->getSelectedStimSource() + 2); //first is SELECT
+
+    if (selectedSource >= nSources)
+        selectedSource = nSources - 1;
+
+    availableSources->setSelectedId (selectedSource + 2); //first is SELECT
 }
 
 void TrackingStimulatorCanvas::refresh()

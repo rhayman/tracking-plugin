@@ -26,12 +26,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
     : VisualizerEditor (parentNode, "Tracking"),
-      selectedSource (-1)
+      selectedSource (-1),
+      port (DEF_PORT),
+      address (DEF_ADDRESS)
 {
     desiredWidth = 250;
 
     sourceLabel = std::make_unique<Label> ("Source Label", "Source");
-    sourceLabel->setFont (FontOptions ("Inter", "Regular", 12.0f));
+    sourceLabel->setFont (FontOptions ("Inter", "Regular", 13.0f));
     sourceLabel->setBounds (35, 24, 60, 20);
     addAndMakeVisible (sourceLabel.get());
 
@@ -52,19 +54,64 @@ TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
     minusButton->setBounds (10, 45, 20, 20);
     addAndMakeVisible (minusButton.get());
 
-    addTextBoxParameterEditor (Parameter::PROCESSOR_SCOPE, "Port", 165, 25);
-    addComboBoxParameterEditor (Parameter::PROCESSOR_SCOPE, "Color", 70, 75);
-    addTextBoxParameterEditor (Parameter::PROCESSOR_SCOPE, "Address", 165, 75);
+    portEditor = std::make_unique<CustomTextBox> ("Port Editor", String (DEF_PORT), "0123456789", "");
+    portEditor->setBounds (165, 43, 80, 18);
+    portEditor->setFont (FontOptions ("CP Mono", "Plain", int (0.75 * 18)));
+    portEditor->setJustificationType (Justification::centred);
+    portEditor->setEditable (true);
+    portEditor->addListener (this);
+    portEditor->setTooltip ("Tracking source OSC port");
+    addAndMakeVisible (portEditor.get());
+
+    portLabel = std::make_unique<Label> ("Port Label", "Port");
+    portLabel->setFont (FontOptions ("Inter", "Regular", 13.0f));
+    portLabel->setSize (80, 18);
+    portLabel->attachToComponent (portEditor.get(), false);
+    addAndMakeVisible (portLabel.get());
+
+    addressEditor = std::make_unique<CustomTextBox> ("Address Editor", DEF_ADDRESS, String(), "");
+    addressEditor->setBounds (165, 93, 80, 18);
+    addressEditor->setFont (FontOptions ("CP Mono", "Plain", int (0.75 * 18)));
+    addressEditor->setJustificationType (Justification::centred);
+    addressEditor->setEditable (true);
+    addressEditor->addListener (this);
+    addressEditor->setTooltip ("Tracking source OSC address");
+    addAndMakeVisible (addressEditor.get());
+
+    addressLabel = std::make_unique<Label> ("Address Label", "Address");
+    addressLabel->setFont (FontOptions ("Inter", "Regular", 13.0f));
+    addressLabel->setSize (80, 18);
+    addressLabel->attachToComponent (addressEditor.get(), false);
+    addAndMakeVisible (addressLabel.get());
+
+    colorSelector = std::make_unique<ComboBox> ("Color Selector");
+    colorSelector->setBounds (70, 93, 80, 18);
+    colorSelector->addListener (this);
+    auto colors = ((TrackingNode*) parentNode)->colors;
+    for (int i = 0; i < colors.size(); i++)
+    {
+        colorSelector->addItem (colors[i], i + 1);
+    }
+    colorSelector->setSelectedId (1, dontSendNotification);
+    colorSelector->setTooltip ("Tracking source color");
+    addAndMakeVisible (colorSelector.get());
+
+    colorLabel = std::make_unique<Label> ("Color Label", "Color");
+    colorLabel->setFont (FontOptions ("Inter", "Regular", 13.0f));
+    colorLabel->setSize (80, 18);
+    colorLabel->attachToComponent (colorSelector.get(), false);
+    addAndMakeVisible (colorLabel.get());
+
     addToggleParameterEditor (Parameter::PROCESSOR_SCOPE, "StimOn", 15, 75);
 
     for (auto ed : parameterEditors)
     {
-        ed->setLayout (ParameterEditor::Layout::nameOnTop);
-
         if (ed->getParameterName() == "StimOn")
+        {
+            ed->setLayout (ParameterEditor::Layout::nameOnTop);
             ed->setSize (40, 36);
-        else
-            ed->setSize (80, 36);
+            break;
+        }
     }
 }
 
@@ -103,6 +150,9 @@ void TrackingNodeEditor::buttonClicked (Button* btn)
     }
     else if (btn == minusButton.get())
     {
+        if (selectedSource < 0)
+            return; // no source selected or invalid index
+
         processor->removeSource (selectedSource);
 
         if (selectedSource >= processor->getNumSources())
@@ -111,6 +161,8 @@ void TrackingNodeEditor::buttonClicked (Button* btn)
         trackingSourceSelector->clear();
         for (int i = 0; i < processor->getNumSources(); i++)
             trackingSourceSelector->addItem ("Tracking source " + String (i + 1), i + 1);
+
+        trackingSourceSelector->setSelectedId (selectedSource + 1, dontSendNotification);
 
         updateCustomView();
 
@@ -126,6 +178,66 @@ void TrackingNodeEditor::comboBoxChanged (ComboBox* c)
         selectedSource = c->getSelectedId() - 1;
         updateCustomView();
     }
+    else if (c == colorSelector.get())
+    {
+        if (selectedSource < 0)
+            return; // no source selected
+
+        TrackingNode* processor = (TrackingNode*) getProcessor();
+        processor->setColor (selectedSource, processor->colors[c->getSelectedId() - 1]);
+    }
+}
+
+void TrackingNodeEditor::labelTextChanged (Label* label)
+{
+    TrackingNode* processor = (TrackingNode*) getProcessor();
+
+    if (label == portEditor.get())
+    {
+        int newPort = portEditor->getText().getIntValue();
+        if (newPort < 1024 || newPort > 49151) // valid port range
+        {
+            // if the port is invalid, set it to default
+            portEditor->setText (String (port), dontSendNotification);
+            LOGC ("Invalid port number. Please enter a value between 1024 and 49151.");
+            return;
+        }
+        processor->setPort (selectedSource, newPort);
+        port = newPort;
+    }
+    else if (label == addressEditor.get())
+    {
+        String newAddr = addressEditor->getText();
+
+        if (newAddr.isEmpty())
+        {
+            // if the address is empty, set it to default
+            addressEditor->setText (address, dontSendNotification);
+            LOGC ("Empty address not allowed. Please enter a valid address.");
+            return;
+        }
+        processor->setAddress (selectedSource, newAddr);
+        address = newAddr;
+    }
+}
+
+int TrackingNodeEditor::getPort()
+{
+    return port;
+}
+
+String TrackingNodeEditor::getAddress()
+{
+    return address;
+}
+
+String TrackingNodeEditor::getColor()
+{
+    String color = colorSelector->getText();
+    if (color.isEmpty())
+        color = DEF_COLOR; // default color if empty
+
+    return color;
 }
 
 void TrackingNodeEditor::saveVisualizerEditorParameters (XmlElement* xml)
@@ -185,32 +297,26 @@ void TrackingNodeEditor::updateCustomView()
 {
     TrackingNode* processor = (TrackingNode*) getProcessor();
 
-    auto portParam = processor->getParameter ("Port");
-    int port = processor->getPort (selectedSource);
+    int newPort = processor->getPort (selectedSource);
 
-    if (port == 0)
-        port = DEF_PORT;
+    if (newPort == 0)
+        newPort = DEF_PORT;
 
-    portParam->currentValue = port;
+    portEditor->setText (String (newPort), dontSendNotification);
+    port = newPort;
 
-    auto addressParam = processor->getParameter ("Address");
-    String addr = processor->getAddress (selectedSource);
+    String newAddr = processor->getAddress (selectedSource);
 
-    if (addr.isEmpty())
-        addr = DEF_ADDRESS;
+    if (newAddr.isEmpty())
+        newAddr = DEF_ADDRESS;
 
-    addressParam->currentValue = addr;
+    addressEditor->setText (newAddr, dontSendNotification);
+    address = newAddr;
 
-    auto colorParam = processor->getParameter ("Color");
     String color = processor->getColor (selectedSource);
 
     if (color.isEmpty())
         color = DEF_COLOR;
 
-    colorParam->currentValue = processor->colors.indexOf (color);
-
-    for (auto ed : parameterEditors)
-    {
-        ed->updateView();
-    }
+    colorSelector->setSelectedId (processor->colors.indexOf (color) + 1, dontSendNotification);
 }
