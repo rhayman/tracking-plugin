@@ -52,10 +52,9 @@ extern "C" EXPORT int getPluginInfo (int index, Plugin::PluginInfo* info)
     switch (index)
     {
         case 0:
-            info->type = Plugin::Type::PROCESSOR;
-            info->processor.name = "Tracking Plugin"; // Processor name shown in the GUI
-            info->processor.type = Processor::Type::FILTER;
-            info->processor.creator = &(Plugin::createProcessor<TrackingNode>);
+            info->type = Plugin::DATA_THREAD;
+            info->dataThread.name = "Tracking Plugin"; // <---- update
+            info->dataThread.creator = &createDataThread<TrackingNode>;
             break;
 
         default:
