@@ -50,7 +50,7 @@ class TrackingStimulatorCanvas : public Visualizer,
                                  public KeyListener
 {
 public:
-    TrackingStimulatorCanvas (TrackingNode* TrackingNode);
+    TrackingStimulatorCanvas (GenericProcessor* sourceNode, TrackingNode* thread);
     ~TrackingStimulatorCanvas();
 
     void paint (Graphics&);

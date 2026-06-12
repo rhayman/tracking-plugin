@@ -32,8 +32,8 @@
 #include "TrackingStimulatorCanvas.h"
 #include "TrackingNode.h"
 
-TrackingStimulatorCanvas::TrackingStimulatorCanvas (TrackingNode* node)
-    : Visualizer (node), processor (node), m_width (1.0), m_height (1.0), m_updateCircle (true), m_onoff (false), m_isDeleting (true), settingsWidth (250), settingsHeight (600), selectedSource (-1), outputChan (0), sectionLabelFont ("Inter", "Semi Bold", 18.0f)
+TrackingStimulatorCanvas::TrackingStimulatorCanvas (GenericProcessor* sourceNode, TrackingNode* thread)
+    : Visualizer (sourceNode), processor (thread), m_width (1.0), m_height (1.0), m_updateCircle (true), m_onoff (false), m_isDeleting (true), settingsWidth (250), settingsHeight (600), selectedSource (-1), outputChan (0), sectionLabelFont ("Inter", "Semi Bold", 18.0f)
 {
     // Setup buttons
     initButtons();
@@ -43,7 +43,7 @@ TrackingStimulatorCanvas::TrackingStimulatorCanvas (TrackingNode* node)
     addKeyListener (this);
     setWantsKeyboardFocus (true);
 
-    displayAxes = std::make_unique<DisplayAxes> (node, this);
+    displayAxes = std::make_unique<DisplayAxes> (thread, this);
     addAndMakeVisible (displayAxes.get());
 
     update();

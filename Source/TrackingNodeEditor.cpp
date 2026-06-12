@@ -24,8 +24,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TrackingStimulatorCanvas.h"
 #include <vector>
 
-TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
+TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode, TrackingNode* thread_)
     : VisualizerEditor (parentNode, "Tracking"),
+      thread (thread_),
       selectedSource (-1),
       port (DEF_PORT),
       address (DEF_ADDRESS)
@@ -87,7 +88,7 @@ TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
     colorSelector = std::make_unique<ComboBox> ("Color Selector");
     colorSelector->setBounds (70, 93, 80, 18);
     colorSelector->addListener (this);
-    auto colors = ((TrackingNode*) parentNode)->colors;
+    auto colors = thread->colors;
     for (int i = 0; i < colors.size(); i++)
     {
         colorSelector->addItem (colors[i], i + 1);
@@ -117,14 +118,11 @@ TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
 
 Visualizer* TrackingNodeEditor::createNewCanvas()
 {
-    TrackingNode* processor = (TrackingNode*) getProcessor();
-    return new TrackingStimulatorCanvas (processor);
+    return new TrackingStimulatorCanvas (getProcessor(), thread);
 }
 
 void TrackingNodeEditor::buttonClicked (Button* btn)
 {
-    TrackingNode* processor = (TrackingNode*) getProcessor();
-
     if (btn == plusButton.get())
     {
         // add a tracking source
@@ -136,7 +134,7 @@ void TrackingNodeEditor::buttonClicked (Button* btn)
 
         String txt = "Tracking source " + String (newId);
 
-        if (processor->addSource (txt)) // check if adding the source was successfull
+        if (thread->addSource (txt)) // check if adding the source was successfull
         {
             trackingSourceSelector->addItem (txt, newId);
             trackingSourceSelector->setSelectedId (newId, dontSendNotification);
@@ -153,13 +151,13 @@ void TrackingNodeEditor::buttonClicked (Button* btn)
         if (selectedSource < 0)
             return; // no source selected or invalid index
 
-        processor->removeSource (selectedSource);
+        thread->removeSource (selectedSource);
 
-        if (selectedSource >= processor->getNumSources())
-            selectedSource = processor->getNumSources() - 1;
+        if (selectedSource >= thread->getNumSources())
+            selectedSource = thread->getNumSources() - 1;
 
         trackingSourceSelector->clear();
-        for (int i = 0; i < processor->getNumSources(); i++)
+        for (int i = 0; i < thread->getNumSources(); i++)
             trackingSourceSelector->addItem ("Tracking source " + String (i + 1), i + 1);
 
         trackingSourceSelector->setSelectedId (selectedSource + 1, dontSendNotification);
@@ -183,15 +181,12 @@ void TrackingNodeEditor::comboBoxChanged (ComboBox* c)
         if (selectedSource < 0)
             return; // no source selected
 
-        TrackingNode* processor = (TrackingNode*) getProcessor();
-        processor->setColor (selectedSource, processor->colors[c->getSelectedId() - 1]);
+        thread->setColor (selectedSource, thread->colors[c->getSelectedId() - 1]);
     }
 }
 
 void TrackingNodeEditor::labelTextChanged (Label* label)
 {
-    TrackingNode* processor = (TrackingNode*) getProcessor();
-
     if (label == portEditor.get())
     {
         int newPort = portEditor->getText().getIntValue();
@@ -202,7 +197,7 @@ void TrackingNodeEditor::labelTextChanged (Label* label)
             LOGC ("Invalid port number. Please enter a value between 1024 and 49151.");
             return;
         }
-        processor->setPort (selectedSource, newPort);
+        thread->setPort (selectedSource, newPort);
         port = newPort;
     }
     else if (label == addressEditor.get())
@@ -216,7 +211,7 @@ void TrackingNodeEditor::labelTextChanged (Label* label)
             LOGC ("Empty address not allowed. Please enter a valid address.");
             return;
         }
-        processor->setAddress (selectedSource, newAddr);
+        thread->setAddress (selectedSource, newAddr);
         address = newAddr;
     }
 }
@@ -245,21 +240,18 @@ void TrackingNodeEditor::saveVisualizerEditorParameters (XmlElement* xml)
     XmlElement* mainNode = xml->createNewChildElement ("TRACKING_SOURCES");
     mainNode->setAttribute ("selectedID", selectedSource);
 
-    TrackingNode* processor = (TrackingNode*) getProcessor();
-
     for (int i = 0; i < trackingSourceSelector->getNumItems(); i++)
     {
         XmlElement* source = new XmlElement ("Source" + String (i + 1));
-        source->setAttribute ("port", processor->getPort (i));
-        source->setAttribute ("address", processor->getAddress (i));
-        source->setAttribute ("color", processor->getColor (i));
+        source->setAttribute ("port", thread->getPort (i));
+        source->setAttribute ("address", thread->getAddress (i));
+        source->setAttribute ("color", thread->getColor (i));
         mainNode->addChildElement (source);
     }
 }
 
 void TrackingNodeEditor::loadVisualizerEditorParameters (XmlElement* xml)
 {
-    TrackingNode* processor = (TrackingNode*) getProcessor();
     auto* mainNode = xml->getChildByName ("TRACKING_SOURCES");
 
     if (mainNode != nullptr)
@@ -275,10 +267,10 @@ void TrackingNodeEditor::loadVisualizerEditorParameters (XmlElement* xml)
 
             String srcName = "Tracking source " + String (newId);
 
-            processor->addSource (srcName,
-                                  source->getIntAttribute ("port"),
-                                  source->getStringAttribute ("address"),
-                                  source->getStringAttribute ("color"));
+            thread->addSource (srcName,
+                               source->getIntAttribute ("port"),
+                               source->getStringAttribute ("address"),
+                               source->getStringAttribute ("color"));
 
             trackingSourceSelector->addItem (srcName, newId);
         }
@@ -295,9 +287,7 @@ void TrackingNodeEditor::loadVisualizerEditorParameters (XmlElement* xml)
 
 void TrackingNodeEditor::updateCustomView()
 {
-    TrackingNode* processor = (TrackingNode*) getProcessor();
-
-    int newPort = processor->getPort (selectedSource);
+    int newPort = thread->getPort (selectedSource);
 
     if (newPort == 0)
         newPort = DEF_PORT;
@@ -305,7 +295,7 @@ void TrackingNodeEditor::updateCustomView()
     portEditor->setText (String (newPort), dontSendNotification);
     port = newPort;
 
-    String newAddr = processor->getAddress (selectedSource);
+    String newAddr = thread->getAddress (selectedSource);
 
     if (newAddr.isEmpty())
         newAddr = DEF_ADDRESS;
@@ -313,10 +303,10 @@ void TrackingNodeEditor::updateCustomView()
     addressEditor->setText (newAddr, dontSendNotification);
     address = newAddr;
 
-    String color = processor->getColor (selectedSource);
+    String color = thread->getColor (selectedSource);
 
     if (color.isEmpty())
         color = DEF_COLOR;
 
-    colorSelector->setSelectedId (processor->colors.indexOf (color) + 1, dontSendNotification);
+    colorSelector->setSelectedId (thread->colors.indexOf (color) + 1, dontSendNotification);
 }

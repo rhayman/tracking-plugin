@@ -27,6 +27,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <VisualizerEditorHeaders.h>
 
+class TrackingNode;
+
 class TrackingNodeEditor : public VisualizerEditor,
                            public Button::Listener,
                            public ComboBox::Listener,
@@ -34,7 +36,7 @@ class TrackingNodeEditor : public VisualizerEditor,
 {
 public:
     /** Constructor */
-    TrackingNodeEditor (GenericProcessor* parentNode);
+    TrackingNodeEditor (GenericProcessor* parentNode, TrackingNode* thread);
 
     /** Destructor */
     ~TrackingNodeEditor() {}
@@ -69,6 +71,9 @@ public:
     String getColor();
 
 private:
+    /** Pointer to the underlying DataThread */
+    TrackingNode* thread;
+
     std::unique_ptr<UtilityButton> plusButton;
     std::unique_ptr<UtilityButton> minusButton;
     std::unique_ptr<Label> sourceLabel;
