@@ -22,7 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TrackingNodeEditor.h"
 #include "TrackingNode.h"
 #include "TrackingStimulatorCanvas.h"
-#include <vector>
 
 TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode, TrackingNode* thread_)
     : VisualizerEditor (parentNode, "Tracking"),

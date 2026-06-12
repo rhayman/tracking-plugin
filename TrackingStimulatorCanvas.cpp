@@ -1069,7 +1069,7 @@ void DisplayAxes::paint (Graphics& g)
         Colour source_colour = color_palette[source.color];
         g.setColour (source_colour);
 
-        //std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
+        std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
 
         // Plot trajectory as lines
         if (m_positions[selectedSource].size() >= 2)
@@ -1089,11 +1089,11 @@ void DisplayAxes::paint (Graphics& g)
                     float x_prev = getWidth() * prev_position.x;
                     float y_prev = getHeight() * prev_position.y;
                     g.drawLine (x_prev, y_prev, x, y, 5.0f);
-                    // std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
+                    std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
                 }
                 else
                 {
-                    // std::cout << "Not drawing line" << std::endl;
+                    std::cout << "Not drawing line" << std::endl;
                 }
             }
             // Plot current position as ellipse
@@ -1105,11 +1105,11 @@ void DisplayAxes::paint (Graphics& g)
 
                 g.fillEllipse (x - 0.01 * getHeight(), y - 0.01 * getHeight(), 0.02 * getHeight(), 0.02 * getHeight());
 
-                //std::cout << "Drawing point." << std::endl;
+                std::cout << "Drawing point." << std::endl;
             }
             else
             {
-                //std::cout << "Not drawing point" << std::endl;
+                std::cout << "Not drawing point" << std::endl;
             }
         }
     }
