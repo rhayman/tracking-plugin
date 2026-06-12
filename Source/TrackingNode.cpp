@@ -611,6 +611,7 @@ void TrackingNode::receiveMessage (int port, String address, const TrackingData&
 
 TrackingSources& TrackingNode::getTrackingSource (int i)
 {
+    jassert (i >= 0 && i < trackers.size());
     return trackers[i]->source;
 }
 
