@@ -662,10 +662,21 @@ void TrackingStimulatorCanvas::updateSettings()
         availableSources->addItem (name, nextItem++);
     }
 
-    if (selectedSource >= nSources)
+    if (nSources == 0)
+    {
+        selectedSource = -1;
+        availableSources->setSelectedId (1, dontSendNotification);
+        processor->setSelectedStimSource (-1);
+        return;
+    }
+
+    if (selectedSource < 0)
+        selectedSource = 0;
+    else if (selectedSource >= nSources)
         selectedSource = nSources - 1;
 
-    availableSources->setSelectedId (selectedSource + 2); //first is SELECT
+    availableSources->setSelectedId (selectedSource + 2, dontSendNotification); // first is SELECT
+    processor->setSelectedStimSource (selectedSource);
 }
 
 void TrackingStimulatorCanvas::refresh()
