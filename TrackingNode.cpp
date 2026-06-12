@@ -112,7 +112,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings xSettings {
             ContinuousChannel::Type::AUX,
             "x",
-            "X position scaled by source width",
+            "X position in frame pixels",
             "tracking.x",
             1.0f,
             stream
@@ -123,7 +123,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings ySettings {
             ContinuousChannel::Type::AUX,
             "y",
-            "Y position scaled by source height",
+            "Y position in frame pixels",
             "tracking.y",
             1.0f,
             stream
@@ -134,7 +134,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings wSettings {
             ContinuousChannel::Type::AUX,
             "width",
-            "Source width",
+            "Frame width in pixels",
             "tracking.width",
             1.0f,
             stream
@@ -145,7 +145,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings hSettings {
             ContinuousChannel::Type::AUX,
             "height",
-            "Source height",
+            "Frame height in pixels",
             "tracking.height",
             1.0f,
             stream
