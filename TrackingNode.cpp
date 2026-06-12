@@ -112,7 +112,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings xSettings {
             ContinuousChannel::Type::AUX,
             "x",
-            "Normalised x position [0-1]",
+            "X position in frame pixels",
             "tracking.x",
             1.0f,
             stream
@@ -123,7 +123,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings ySettings {
             ContinuousChannel::Type::AUX,
             "y",
-            "Normalised y position [0-1]",
+            "Y position in frame pixels",
             "tracking.y",
             1.0f,
             stream
@@ -134,7 +134,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings wSettings {
             ContinuousChannel::Type::AUX,
             "width",
-            "Normalised width [0-1]",
+            "Frame width in pixels",
             "tracking.width",
             1.0f,
             stream
@@ -145,7 +145,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
         ContinuousChannel::Settings hSettings {
             ContinuousChannel::Type::AUX,
             "height",
-            "Normalised height [0-1]",
+            "Frame height in pixels",
             "tracking.height",
             1.0f,
             stream
@@ -291,9 +291,11 @@ bool TrackingNode::updateBuffer()
             // Write position + TTL state to DataBuffer if one exists for this source
             if (i < sourceBuffers.size())
             {
+                const float scaledX = msg->position.x * msg->position.width;
+                const float scaledY = msg->position.y * msg->position.height;
                 float data[4] = {
-                    msg->position.x,
-                    msg->position.y,
+                    scaledX,
+                    scaledY,
                     msg->position.width,
                     msg->position.height
                 };
