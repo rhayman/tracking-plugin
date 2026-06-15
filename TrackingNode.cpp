@@ -59,8 +59,12 @@ TrackingNode::TrackingNode()
       m_ttlOnSample (0),
       m_stimMode (stim_mode::uniform),
       m_stimFreq (DEF_FREQ),
-      m_stimSD (DEF_SD)
+      m_stimSD (DEF_SD),
+      m_sampleNumber (0),
+      m_lastProcessTicks (0),
+      m_samplesAccumulated (0.0)
 {
+    setProcessorType (Plugin::Processor::SOURCE);
 }
 
 void TrackingNode::registerParameters()
@@ -74,20 +78,71 @@ AudioProcessorEditor* TrackingNode::createEditor()
     return editor.get();
 }
 
+bool TrackingNode::generatesTimestamps() const
+{
+    return true;
+}
+
+float TrackingNode::getDefaultSampleRate() const
+{
+    return (float) TRACKING_FREQ;
+}
+
 void TrackingNode::updateSettings()
 {
-    for (auto stream : getDataStreams())
+    // As a SOURCE, create our own DataStream (one per plugin instance).
+    DataStream::Settings streamSettings {
+        "Tracking",
+        "Position data received via OSC",
+        "tracking.stream",
+        (float) TRACKING_FREQ,
+        true // generates_timestamps
+    };
+    dataStreams.add (new DataStream (streamSettings));
+    dataStreams.getLast()->addProcessor (this);
+
+    DataStream* stream = dataStreams.getLast();
+
+    // Two continuous channels per tracker: X position and Y position (both scaled
+    // to pixel units by multiplying the normalised (0-1) value by width / height).
+    for (int i = 0; i < trackers.size(); ++i)
     {
-        EventChannel::Settings ttlSettings {
-            EventChannel::Type::TTL,
-            "Tracking stimulation output",
-            "Triggers whenever the tracked position enters a stimulation ROI",
-            "tracking.event",
-            stream,
-            8
+        String trackerName = trackers[i]->m_name;
+
+        ContinuousChannel::Settings xSettings {
+            ContinuousChannel::Type::AUX,
+            trackerName + " X",
+            "X position scaled by frame width (pixels)",
+            "tracking.position.x",
+            1.0f, // bitVolts: 1 count == 1 pixel
+            stream
         };
-        eventChannels.add (new EventChannel (ttlSettings));
+        continuousChannels.add (new ContinuousChannel (xSettings));
+        continuousChannels.getLast()->addProcessor (this);
+
+        ContinuousChannel::Settings ySettings {
+            ContinuousChannel::Type::AUX,
+            trackerName + " Y",
+            "Y position scaled by frame height (pixels)",
+            "tracking.position.y",
+            1.0f,
+            stream
+        };
+        continuousChannels.add (new ContinuousChannel (ySettings));
+        continuousChannels.getLast()->addProcessor (this);
     }
+
+    // TTL event channel for stimulation output.
+    EventChannel::Settings ttlSettings {
+        EventChannel::Type::TTL,
+        "Tracking stimulation output",
+        "Triggers whenever the tracked position enters a stimulation ROI",
+        "tracking.event",
+        stream,
+        8
+    };
+    eventChannels.add (new EventChannel (ttlSettings));
+    eventChannels.getLast()->addProcessor (this);
 }
 
 bool TrackingNode::startAcquisition()
@@ -99,6 +154,11 @@ bool TrackingNode::startAcquisition()
     m_positionIsUpdated = false;
     m_ttlIsOn = false;
     m_ttlTriggered = false;
+
+    // Reset continuous-output timing counters.
+    m_sampleNumber = 0;
+    m_lastProcessTicks = Time::getHighResolutionTicks();
+    m_samplesAccumulated = 0.0;
 
     LOGC ("Clearing tracking message queue(s) before starting acquisition");
 
@@ -114,42 +174,61 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
 {
     checkForEvents();
 
-    // Find the first available stream with an event channel for TTL output
-    auto streams = getDataStreams();
+    if (dataStreams.isEmpty())
+        return;
+
+    DataStream* stream = dataStreams[0];
+    uint16 streamId = stream->getStreamId();
+    float sampleRate = stream->getSampleRate();
+
+    // ---------------------------------------------------------------
+    // Determine how many samples to emit this callback using a
+    // wall-clock accumulator so the long-run rate matches sampleRate.
+    // ---------------------------------------------------------------
+    int64 currentTicks = Time::getHighResolutionTicks();
+    double elapsedSecs = Time::highResolutionTicksToSeconds (currentTicks - m_lastProcessTicks);
+    m_lastProcessTicks = currentTicks;
+
+    m_samplesAccumulated += elapsedSecs * sampleRate;
+    int nSamples = (int) m_samplesAccumulated;
+    m_samplesAccumulated -= nSamples;
+    nSamples = jmax (0, jmin (nSamples, continuousBuffer.getNumSamples()));
+
+    // Time window used by the stochastic stimulation probability.
+    m_timePassed = float (elapsedSecs);
+
+    // Register the sample count and timestamp for this block.
+    setTimestampAndSamples (m_sampleNumber,
+                            (double) m_sampleNumber / sampleRate,
+                            (uint32) nSamples,
+                            streamId);
+
+    int64 firstSample = m_sampleNumber;
+    m_sampleNumber += nSamples;
+
+    // ---------------------------------------------------------------
+    // Find the TTL event channel for this stream.
+    // ---------------------------------------------------------------
     EventChannel* ttlChannel = nullptr;
-    int64 firstSample = 0;
-    float sampleRate = 1.0f;
-
-    if (! streams.isEmpty())
+    for (auto ch : eventChannels)
     {
-        const DataStream* stream = streams.getFirst();
-        uint16 streamId = stream->getStreamId();
-        firstSample = getFirstSampleNumberForBlock (streamId);
-        sampleRate = stream->getSampleRate();
-
-        // Use sample count / sample rate for the stochastic probability window
-        uint32 numSamples = getNumSamplesInBlock (streamId);
-        m_timePassed = (sampleRate > 0.0f) ? float (numSamples) / sampleRate : 0.0f;
-
-        for (auto ch : eventChannels)
+        if (ch->getStreamId() == streamId)
         {
-            if (ch->getStreamId() == streamId)
-            {
-                ttlChannel = ch;
-                break;
-            }
+            ttlChannel = ch;
+            break;
         }
     }
 
-    // Turn off TTL pulse once the configured duration has elapsed (sample-accurate)
-    if (m_ttlIsOn && ttlChannel != nullptr && sampleRate > 0.0f)
+    // ---------------------------------------------------------------
+    // Turn off any active TTL pulse once its duration has elapsed.
+    // ---------------------------------------------------------------
+    if (m_ttlIsOn && ttlChannel != nullptr && sampleRate > 0.0f && nSamples > 0)
     {
         int64 pulseSamples = (int64) (m_pulseDuration / 1000.0f * sampleRate);
         int64 offSample = m_ttlOnSample + pulseSamples;
 
-        if (firstSample >= offSample)
+        if (firstSample + nSamples > offSample)
         {
-            // Clamp to the current block if the off-sample is before its start
             int offOffset = (int) jmax ((int64) 0, offSample - firstSample);
             TTLEventPtr offEvent = TTLEvent::createTTLEvent (ttlChannel, offSample, m_outputChan, false);
             addEvent (offEvent, offOffset);
@@ -158,10 +237,11 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
         }
     }
 
+    // ---------------------------------------------------------------
+    // Drain the OSC queue, update positions, handle stimulation,
+    // then write the latest position into the continuous buffer.
+    // ---------------------------------------------------------------
     const ScopedLock sl (lock);
-
-    if (! m_hasPendingMessages)
-        return;
 
     for (int i = 0; i < trackers.size(); ++i)
     {
@@ -173,16 +253,15 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
 
             m_positionIsUpdated = true;
 
-            // Keep positionData for the visualiser canvas
             trackers[i]->positionData.push_back (msg->position);
 
-            // Update the live source state
             trackers[i]->source.x_pos = msg->position.x;
             trackers[i]->source.y_pos = msg->position.y;
             trackers[i]->source.width = msg->position.width;
             trackers[i]->source.height = msg->position.height;
 
-            if (! m_ttlIsOn && m_isOn && m_selectedStimSource == i && ttlChannel != nullptr)
+            if (! m_ttlIsOn && m_isOn && m_selectedStimSource == i
+                && ttlChannel != nullptr && nSamples > 0)
             {
                 int circleIn = isPositionWithinCircles (msg->position.x, msg->position.y);
 
@@ -237,6 +316,37 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
                     trackers[i]->source.positionInsideACircle = false;
                     m_ttlTriggered = false;
                 }
+            }
+        }
+
+        // Write the most recently received (or initialised) position to the
+        // continuous buffer, scaled to pixel units.  Hold-last-value until a
+        // new OSC message arrives.  x_pos / y_pos are -1 before any data
+        // is received; output 0.0f as a neutral sentinel in that case.
+        if (nSamples > 0)
+        {
+            float xVal = (trackers[i]->source.x_pos >= 0.0f)
+                             ? trackers[i]->source.x_pos * trackers[i]->source.width
+                             : 0.0f;
+            float yVal = (trackers[i]->source.y_pos >= 0.0f)
+                             ? trackers[i]->source.y_pos * trackers[i]->source.height
+                             : 0.0f;
+
+            int xGlobalIdx = getGlobalChannelIndex (streamId, i * 2);
+            int yGlobalIdx = getGlobalChannelIndex (streamId, i * 2 + 1);
+
+            if (xGlobalIdx >= 0 && xGlobalIdx < continuousBuffer.getNumChannels())
+            {
+                float* xPtr = continuousBuffer.getWritePointer (xGlobalIdx);
+                for (int s = 0; s < nSamples; ++s)
+                    xPtr[s] = xVal;
+            }
+
+            if (yGlobalIdx >= 0 && yGlobalIdx < continuousBuffer.getNumChannels())
+            {
+                float* yPtr = continuousBuffer.getWritePointer (yGlobalIdx);
+                for (int s = 0; s < nSamples; ++s)
+                    yPtr[s] = yVal;
             }
         }
     }
