@@ -287,7 +287,6 @@ private:
 
     bool m_positionIsUpdated;
     bool m_isInitialized = false;
-    bool messageReceived;
 
     // Stim ON/OFF
     bool m_isOn;

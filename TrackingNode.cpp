@@ -59,8 +59,7 @@ TrackingNode::TrackingNode (SourceNode* sn)
       m_ttlPulseRemaining (0),
       m_stimMode (stim_mode::uniform),
       m_stimFreq (DEF_FREQ),
-      m_stimSD (DEF_SD),
-      messageReceived (false)
+      m_stimSD (DEF_SD)
 {
     memset (totalSamples, 0, sizeof (totalSamples));
 }
@@ -174,6 +173,7 @@ bool TrackingNode::startAcquisition()
         trackers[i]->m_messageQueue->clear();
 
     memset (totalSamples, 0, sizeof (totalSamples));
+    m_positionIsUpdated = false;
     m_ttlPulseRemaining = 0;
     m_ttlTriggered = false;
     m_previousTime = Time::currentTimeMillis();
@@ -195,14 +195,18 @@ bool TrackingNode::stopAcquisition()
 
 bool TrackingNode::updateBuffer()
 {
-    if (! messageReceived)
+    if (! m_positionIsUpdated)
     {
         Thread::sleep (5); // avoid spinning; OSC data arrives at ~20 Hz
         return true;
     }
 
     const ScopedLock sl (lock);
-    messageReceived = false;
+    if (! m_positionIsUpdated)
+        return true;
+
+    m_positionIsUpdated = false;
+    bool processedMessages = false;
 
     m_currentTime = Time::currentTimeMillis();
     m_timePassed = float (m_currentTime - m_previousTime) / 1000.f; // seconds
@@ -214,6 +218,8 @@ bool TrackingNode::updateBuffer()
             auto* msg = trackers[i]->m_messageQueue->pop();
             if (! msg)
                 break;
+
+            processedMessages = true;
 
             // Keep positionData for the visualiser canvas
             trackers[i]->positionData.push_back (msg->position);
@@ -309,7 +315,7 @@ bool TrackingNode::updateBuffer()
         }
     }
 
-    m_positionIsUpdated = true;
+    m_positionIsUpdated = processedMessages;
     m_previousTime = m_currentTime;
 
     return true;
@@ -606,7 +612,7 @@ void TrackingNode::receiveMessage (int port, String address, const TrackingData&
             TrackingData outputMessage = message;
             outputMessage.timestamp = ts;
             trackers[i]->m_messageQueue->push (outputMessage);
-            messageReceived = true;
+            m_positionIsUpdated = true;
         }
     }
 }
