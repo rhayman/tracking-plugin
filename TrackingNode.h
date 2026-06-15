@@ -286,8 +286,8 @@ private:
     CriticalSection lock;
 
     bool m_positionIsUpdated;
+    bool m_hasPendingMessages;
     bool m_isInitialized = false;
-    bool messageReceived;
 
     // Stim ON/OFF
     bool m_isOn;
