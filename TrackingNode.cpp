@@ -197,127 +197,159 @@ bool TrackingNode::stopAcquisition()
 
 bool TrackingNode::updateBuffer()
 {
-    if (! m_hasPendingMessages)
+    bool shouldSleep = false;
     {
-        Thread::sleep (5); // avoid spinning; OSC data arrives at ~20 Hz
-        return true;
-    }
+        const ScopedLock sl (lock);
 
-    const ScopedLock sl (lock);
-    bool processedMessages = false;
-
-    m_currentTime = Time::currentTimeMillis();
-    m_timePassed = float (m_currentTime - m_previousTime) / 1000.f; // seconds
-
-    for (int i = 0; i < trackers.size(); ++i)
-    {
-        while (true)
+        if (! m_hasPendingMessages)
         {
-            auto* msg = trackers[i]->m_messageQueue->pop();
-            if (! msg)
-                break;
-
-            processedMessages = true;
-
-            // Keep positionData for the visualiser canvas
-            trackers[i]->positionData.push_back (msg->position);
-
-            // Update the live source state
-            trackers[i]->source.x_pos = msg->position.x;
-            trackers[i]->source.y_pos = msg->position.y;
-            trackers[i]->source.width = msg->position.width;
-            trackers[i]->source.height = msg->position.height;
-
-            // Determine TTL state for this sample
-            uint64 ttlCode = 0;
-
-            if (m_ttlPulseRemaining > 0)
+            for (int i = 0; i < trackers.size(); ++i)
             {
-                ttlCode = uint64 (1) << m_outputChan;
-                --m_ttlPulseRemaining;
-            }
-            else if (m_isOn && m_selectedStimSource == i)
-            {
-                int circleIn = isPositionWithinCircles (msg->position.x, msg->position.y);
-
-                if (circleIn != -1)
+                if (! trackers[i]->m_messageQueue->isEmpty())
                 {
-                    trackers[i]->source.positionInsideACircle = true;
-                    bool shouldTrigger = false;
+                    m_hasPendingMessages = true;
+                    break;
+                }
+            }
+        }
 
-                    if (m_stimMode == stim_mode::ttl)
+        if (! m_hasPendingMessages)
+        {
+            shouldSleep = true;
+        }
+        else
+        {
+            bool processedMessages = false;
+
+            m_currentTime = Time::currentTimeMillis();
+            m_timePassed = float (m_currentTime - m_previousTime) / 1000.f; // seconds
+
+            for (int i = 0; i < trackers.size(); ++i)
+            {
+                while (true)
+                {
+                    auto* msg = trackers[i]->m_messageQueue->pop();
+                    if (! msg)
+                        break;
+
+                    processedMessages = true;
+
+                    // Keep positionData for the visualiser canvas
+                    trackers[i]->positionData.push_back (msg->position);
+
+                    // Update the live source state
+                    trackers[i]->source.x_pos = msg->position.x;
+                    trackers[i]->source.y_pos = msg->position.y;
+                    trackers[i]->source.width = msg->position.width;
+                    trackers[i]->source.height = msg->position.height;
+
+                    // Determine TTL state for this sample
+                    uint64 ttlCode = 0;
+
+                    if (m_ttlPulseRemaining > 0)
                     {
-                        if (! m_ttlTriggered)
-                        {
-                            shouldTrigger = true;
-                            m_ttlTriggered = true;
-                        }
-                    }
-                    else
-                    {
-                        float stimInterval;
-                        if (m_stimMode == stim_mode::uniform)
-                        {
-                            stimInterval = 1.f / m_stimFreq;
-                        }
-                        else // gauss
-                        {
-                            float distNorm = m_circles[circleIn].distanceFromCenter (msg->position.x, msg->position.y)
-                                             / m_circles[circleIn].getRad();
-                            float k = -1.0f / std::log (m_stimSD);
-                            float freqGauss = m_stimFreq * std::exp (-pow (distNorm, 2) / k);
-                            stimInterval = 1.f / freqGauss;
-                        }
-
-                        float prob = m_timePassed / stimInterval;
-                        if (prob > 1.f)
-                            LOGC ("WARNING: Tracking stimulation frequency exceeds sample rate.");
-
-                        std::uniform_real_distribution<float> dist (0.0f, 1.0f);
-                        if (dist (generator) < prob)
-                            shouldTrigger = true;
-                    }
-
-                    if (shouldTrigger)
-                    {
-                        int pulseSamples = jmax (1, (int) (m_pulseDuration / 1000.0f * TRACKING_FREQ));
-                        m_ttlPulseRemaining = pulseSamples - 1; // consume first sample below
                         ttlCode = uint64 (1) << m_outputChan;
+                        --m_ttlPulseRemaining;
+                    }
+                    else if (m_isOn && m_selectedStimSource == i)
+                    {
+                        int circleIn = isPositionWithinCircles (msg->position.x, msg->position.y);
+
+                        if (circleIn != -1)
+                        {
+                            trackers[i]->source.positionInsideACircle = true;
+                            bool shouldTrigger = false;
+
+                            if (m_stimMode == stim_mode::ttl)
+                            {
+                                if (! m_ttlTriggered)
+                                {
+                                    shouldTrigger = true;
+                                    m_ttlTriggered = true;
+                                }
+                            }
+                            else
+                            {
+                                float stimInterval;
+                                if (m_stimMode == stim_mode::uniform)
+                                {
+                                    stimInterval = 1.f / m_stimFreq;
+                                }
+                                else // gauss
+                                {
+                                    float distNorm = m_circles[circleIn].distanceFromCenter (msg->position.x, msg->position.y)
+                                                     / m_circles[circleIn].getRad();
+                                    float k = -1.0f / std::log (m_stimSD);
+                                    float freqGauss = m_stimFreq * std::exp (-pow (distNorm, 2) / k);
+                                    stimInterval = 1.f / freqGauss;
+                                }
+
+                                float prob = m_timePassed / stimInterval;
+                                if (prob > 1.f)
+                                    LOGC ("WARNING: Tracking stimulation frequency exceeds sample rate.");
+
+                                std::uniform_real_distribution<float> dist (0.0f, 1.0f);
+                                if (dist (generator) < prob)
+                                    shouldTrigger = true;
+                            }
+
+                            if (shouldTrigger)
+                            {
+                                int pulseSamples = jmax (1, (int) (m_pulseDuration / 1000.0f * TRACKING_FREQ));
+                                m_ttlPulseRemaining = pulseSamples - 1; // consume first sample below
+                                ttlCode = uint64 (1) << m_outputChan;
+                            }
+                        }
+                        else
+                        {
+                            trackers[i]->source.positionInsideACircle = false;
+                            m_ttlTriggered = false;
+                        }
+                    }
+
+                    // Write position + TTL state to DataBuffer if one exists for this source
+                    if (i < sourceBuffers.size())
+                    {
+                        const float scaledX = msg->position.x * msg->position.width;
+                        const float scaledY = msg->position.y * msg->position.height;
+                        float data[4] = {
+                            scaledX,
+                            scaledY,
+                            msg->position.width,
+                            msg->position.height
+                        };
+
+                        int64 sampleNum = totalSamples[i];
+                        double timestamp = double (msg->timestamp) / 1000.0; // ms → s
+
+                        sourceBuffers[i]->addToBuffer (data, &sampleNum, &timestamp, &ttlCode, 1);
+                        ++totalSamples[i];
                     }
                 }
-                else
+            }
+
+            bool queuesEmpty = true;
+            for (int i = 0; i < trackers.size(); ++i)
+            {
+                if (! trackers[i]->m_messageQueue->isEmpty())
                 {
-                    trackers[i]->source.positionInsideACircle = false;
-                    m_ttlTriggered = false;
+                    queuesEmpty = false;
+                    break;
                 }
             }
 
-            // Write position + TTL state to DataBuffer if one exists for this source
-            if (i < sourceBuffers.size())
-            {
-                const float scaledX = msg->position.x * msg->position.width;
-                const float scaledY = msg->position.y * msg->position.height;
-                float data[4] = {
-                    scaledX,
-                    scaledY,
-                    msg->position.width,
-                    msg->position.height
-                };
+            m_hasPendingMessages = ! queuesEmpty;
+            if (processedMessages)
+                m_positionIsUpdated = true;
 
-                int64 sampleNum = totalSamples[i];
-                double timestamp = double (msg->timestamp) / 1000.0; // ms → s
-
-                sourceBuffers[i]->addToBuffer (data, &sampleNum, &timestamp, &ttlCode, 1);
-                ++totalSamples[i];
-            }
+            m_previousTime = m_currentTime;
         }
     }
 
-    m_hasPendingMessages = false;
-    if (processedMessages)
-        m_positionIsUpdated = true;
-
-    m_previousTime = m_currentTime;
+    if (shouldSleep)
+    {
+        Thread::sleep (5); // avoid spinning; OSC data arrives at ~20 Hz
+    }
 
     return true;
 }
