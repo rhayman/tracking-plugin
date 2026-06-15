@@ -184,6 +184,12 @@ public:
     /** Called when upstream signal chain changes. */
     void updateSettings() override;
 
+    /** Returns true because this plugin generates its own timestamps. */
+    bool generatesTimestamps() const override;
+
+    /** Returns the default sample rate for the tracking data stream. */
+    float getDefaultSampleRate() const override;
+
     /** Called when acquisition starts. */
     bool startAcquisition() override;
 
@@ -308,6 +314,11 @@ private:
     int m_selectedStimSource; // Selected stimulation source
 
     OwnedArray<TrackingModule> trackers;
+
+    // Continuous-output timing state (SOURCE mode)
+    int64 m_sampleNumber;
+    int64 m_lastProcessTicks;
+    double m_samplesAccumulated;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingNode);
 };

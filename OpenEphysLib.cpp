@@ -54,7 +54,7 @@ extern "C" EXPORT int getPluginInfo (int index, Plugin::PluginInfo* info)
         case 0:
             info->type = Plugin::PROCESSOR;
             info->processor.name = "Tracking Plugin"; // <---- update
-            info->processor.type = Plugin::Processor::FILTER;
+            info->processor.type = Plugin::Processor::SOURCE;
             info->processor.creator = &Plugin::createProcessor<TrackingNode>;
             break;
 
