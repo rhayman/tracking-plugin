@@ -278,13 +278,11 @@ private:
     // Stim ON/OFF
     bool m_isOn;
 
-    // Time stim
+    // Time stim (probability window per process() callback)
     float m_timePassed;
-    int64 m_previousTime;
-    int64 m_currentTime;
     bool m_ttlTriggered;
-    bool m_ttlIsOn;   // true while a TTL pulse is active
-    int64 m_ttlOnTime; // system time (ms) when the TTL was turned on
+    bool m_ttlIsOn;    // true while a TTL pulse is active
+    int64 m_ttlOnSample; // absolute sample number when the TTL was turned on
 
     std::default_random_engine generator;
 

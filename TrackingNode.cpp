@@ -46,8 +46,6 @@ TrackingNode::TrackingNode()
       m_selectedCircle (-1),
       m_selectedStimSource (-1),
       m_timePassed (0.0),
-      m_currentTime (0),
-      m_previousTime (0),
       m_timePassed_sim (0.0),
       m_currentTime_sim (0),
       m_previousTime_sim (0),
@@ -58,7 +56,7 @@ TrackingNode::TrackingNode()
       m_pulseDuration (DEF_DUR),
       m_ttlTriggered (false),
       m_ttlIsOn (false),
-      m_ttlOnTime (0),
+      m_ttlOnSample (0),
       m_stimMode (stim_mode::uniform),
       m_stimFreq (DEF_FREQ),
       m_stimSD (DEF_SD)
@@ -101,7 +99,6 @@ bool TrackingNode::startAcquisition()
     m_positionIsUpdated = false;
     m_ttlIsOn = false;
     m_ttlTriggered = false;
-    m_previousTime = Time::currentTimeMillis();
 
     LOGC ("Clearing tracking message queue(s) before starting acquisition");
 
@@ -121,11 +118,18 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
     auto streams = getDataStreams();
     EventChannel* ttlChannel = nullptr;
     int64 firstSample = 0;
+    float sampleRate = 1.0f;
 
     if (! streams.isEmpty())
     {
-        uint16 streamId = streams.getFirst()->getStreamId();
+        const DataStream* stream = streams.getFirst();
+        uint16 streamId = stream->getStreamId();
         firstSample = getFirstSampleNumberForBlock (streamId);
+        sampleRate = stream->getSampleRate();
+
+        // Use sample count / sample rate for the stochastic probability window
+        uint32 numSamples = getNumSamplesInBlock (streamId);
+        m_timePassed = (sampleRate > 0.0f) ? float (numSamples) / sampleRate : 0.0f;
 
         for (auto ch : eventChannels)
         {
@@ -137,23 +141,27 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
         }
     }
 
-    // Turn off TTL pulse if the duration has elapsed
-    if (m_ttlIsOn && ttlChannel != nullptr
-        && (Time::currentTimeMillis() - m_ttlOnTime) >= m_pulseDuration)
+    // Turn off TTL pulse once the configured duration has elapsed (sample-accurate)
+    if (m_ttlIsOn && ttlChannel != nullptr && sampleRate > 0.0f)
     {
-        TTLEventPtr offEvent = TTLEvent::createTTLEvent (ttlChannel, firstSample, m_outputChan, false);
-        addEvent (offEvent, 0);
-        m_ttlIsOn = false;
-        m_ttlTriggered = false;
+        int64 pulseSamples = (int64) (m_pulseDuration / 1000.0f * sampleRate);
+        int64 offSample = m_ttlOnSample + pulseSamples;
+
+        if (firstSample >= offSample)
+        {
+            // Clamp to the current block if the off-sample is before its start
+            int offOffset = (int) jmax ((int64) 0, offSample - firstSample);
+            TTLEventPtr offEvent = TTLEvent::createTTLEvent (ttlChannel, offSample, m_outputChan, false);
+            addEvent (offEvent, offOffset);
+            m_ttlIsOn = false;
+            m_ttlTriggered = false;
+        }
     }
 
     const ScopedLock sl (lock);
 
     if (! m_hasPendingMessages)
         return;
-
-    m_currentTime = Time::currentTimeMillis();
-    m_timePassed = float (m_currentTime - m_previousTime) / 1000.f; // seconds
 
     for (int i = 0; i < trackers.size(); ++i)
     {
@@ -221,7 +229,7 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
                         TTLEventPtr onEvent = TTLEvent::createTTLEvent (ttlChannel, firstSample, m_outputChan, true);
                         addEvent (onEvent, 0);
                         m_ttlIsOn = true;
-                        m_ttlOnTime = Time::currentTimeMillis();
+                        m_ttlOnSample = firstSample;
                     }
                 }
                 else
@@ -244,7 +252,6 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
     }
 
     m_hasPendingMessages = ! queuesEmpty;
-    m_previousTime = m_currentTime;
 }
 
 bool TrackingNode::addSource (String srcName, int port, String address, String color)
