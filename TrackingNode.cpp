@@ -38,7 +38,7 @@ std::ostream&
 /** ------------- Tracking Node DataThread --------------- */
 
 TrackingNode::TrackingNode()
-    : GenericProcessor ("Tracking Plugin"),
+    : GenericProcessor ("Trackerizer"),
       m_isOn (true),
       m_positionIsUpdated (false),
       m_hasPendingMessages (false),

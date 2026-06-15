@@ -23,7 +23,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <PluginInfo.h>
 
 #include "TrackingNode.h"
-#include <string>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -42,7 +41,7 @@ extern "C" EXPORT void getLibInfo (Plugin::LibraryInfo* info)
 	Should not be changed to ensure it is always equal to the one used in the latest codebase.
 	The GUI refueses to load plugins with mismatched API versions */
     info->apiVersion = PLUGIN_API_VER;
-    info->name = "Tracking Plugin"; // <---- update
+    info->name = "Trackerizer"; // <---- update
     info->libVersion = "1.0.0"; // <---- update
     info->numPlugins = NUM_PLUGINS;
 }
@@ -53,7 +52,7 @@ extern "C" EXPORT int getPluginInfo (int index, Plugin::PluginInfo* info)
     {
         case 0:
             info->type = Plugin::PROCESSOR;
-            info->processor.name = "Tracking Plugin"; // <---- update
+            info->processor.name = "Trackerizer"; // <---- update
             info->processor.type = Plugin::Processor::SOURCE;
             info->processor.creator = &Plugin::createProcessor<TrackingNode>;
             break;
