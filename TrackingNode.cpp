@@ -41,6 +41,7 @@ TrackingNode::TrackingNode (SourceNode* sn)
     : DataThread (sn),
       m_isOn (true),
       m_positionIsUpdated (false),
+      m_hasPendingMessages (false),
       m_simulateTrajectory (false),
       m_selectedCircle (-1),
       m_selectedStimSource (-1),
@@ -173,6 +174,7 @@ bool TrackingNode::startAcquisition()
         trackers[i]->m_messageQueue->clear();
 
     memset (totalSamples, 0, sizeof (totalSamples));
+    m_hasPendingMessages = false;
     m_positionIsUpdated = false;
     m_ttlPulseRemaining = 0;
     m_ttlTriggered = false;
@@ -195,17 +197,13 @@ bool TrackingNode::stopAcquisition()
 
 bool TrackingNode::updateBuffer()
 {
-    if (! m_positionIsUpdated)
+    if (! m_hasPendingMessages)
     {
         Thread::sleep (5); // avoid spinning; OSC data arrives at ~20 Hz
         return true;
     }
 
     const ScopedLock sl (lock);
-    if (! m_positionIsUpdated)
-        return true;
-
-    m_positionIsUpdated = false;
     bool processedMessages = false;
 
     m_currentTime = Time::currentTimeMillis();
@@ -315,7 +313,10 @@ bool TrackingNode::updateBuffer()
         }
     }
 
-    m_positionIsUpdated = processedMessages;
+    m_hasPendingMessages = false;
+    if (processedMessages)
+        m_positionIsUpdated = true;
+
     m_previousTime = m_currentTime;
 
     return true;
@@ -612,7 +613,7 @@ void TrackingNode::receiveMessage (int port, String address, const TrackingData&
             TrackingData outputMessage = message;
             outputMessage.timestamp = ts;
             trackers[i]->m_messageQueue->push (outputMessage);
-            m_positionIsUpdated = true;
+            m_hasPendingMessages = true;
         }
     }
 }

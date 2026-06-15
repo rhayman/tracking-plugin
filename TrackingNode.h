@@ -286,6 +286,7 @@ private:
     CriticalSection lock;
 
     bool m_positionIsUpdated;
+    bool m_hasPendingMessages;
     bool m_isInitialized = false;
 
     // Stim ON/OFF
