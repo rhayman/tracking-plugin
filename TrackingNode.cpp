@@ -203,24 +203,10 @@ bool TrackingNode::updateBuffer()
 
         if (! m_hasPendingMessages)
         {
-            for (int i = 0; i < trackers.size(); ++i)
-            {
-                if (! trackers[i]->m_messageQueue->isEmpty())
-                {
-                    m_hasPendingMessages = true;
-                    break;
-                }
-            }
-        }
-
-        if (! m_hasPendingMessages)
-        {
             shouldSleep = true;
         }
         else
         {
-            bool processedMessages = false;
-
             m_currentTime = Time::currentTimeMillis();
             m_timePassed = float (m_currentTime - m_previousTime) / 1000.f; // seconds
 
@@ -232,7 +218,7 @@ bool TrackingNode::updateBuffer()
                     if (! msg)
                         break;
 
-                    processedMessages = true;
+                    m_positionIsUpdated = true;
 
                     // Keep positionData for the visualiser canvas
                     trackers[i]->positionData.push_back (msg->position);
@@ -339,8 +325,6 @@ bool TrackingNode::updateBuffer()
             }
 
             m_hasPendingMessages = ! queuesEmpty;
-            if (processedMessages)
-                m_positionIsUpdated = true;
 
             m_previousTime = m_currentTime;
         }
