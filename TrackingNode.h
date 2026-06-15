@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define TRACKINGNODE_H
 
 #include "TrackingMessage.h"
-#include <DataThreadHeaders.h>
+#include <ProcessorHeaders.h>
 
 #include <queue>
 #include <random>
@@ -159,52 +159,39 @@ private:
     float m_rad;
 };
 
-class TrackingNode : public DataThread
+class TrackingNode : public GenericProcessor
 {
 public:
     /** The class constructor, used to initialize any members. */
-    TrackingNode (SourceNode* sn);
+    TrackingNode();
 
     /** The class destructor, used to deallocate memory */
     ~TrackingNode() {}
 
     // ------------------------------------------------------------
-    //                  PURE VIRTUAL METHODS
-    //     (must be implemented by all DataThreads)
-    // ------------------------------------------------------------
-
-    /** Returns true if the data source is connected, false otherwise. */
-    bool foundInputSource() override;
-
-    /** Passes the processor's info objects to DataThread, to allow them to be configured. */
-    void updateSettings (OwnedArray<ContinuousChannel>* continuousChannels,
-                         OwnedArray<EventChannel>* eventChannels,
-                         OwnedArray<SpikeChannel>* spikeChannels,
-                         OwnedArray<DataStream>* sourceStreams,
-                         OwnedArray<DeviceInfo>* devices,
-                         OwnedArray<ConfigurationObject>* configurationObjects) override;
-
-    /** Initializes data transfer. */
-    bool startAcquisition() override;
-
-    /** Stops data transfer. */
-    bool stopAcquisition() override;
-
-    /** Called repeatedly to fill the DataBuffer with incoming tracking data. */
-    bool updateBuffer() override;
-
-    // ------------------------------------------------------------
     //                   VIRTUAL METHODS
     // ------------------------------------------------------------
 
-    /** Create the DataThread custom editor. */
-    std::unique_ptr<GenericEditor> createEditor (SourceNode* sn) override;
+    /** Create the processor's custom editor. */
+    AudioProcessorEditor* createEditor() override;
 
-    /** Registers the parameters of the DataThread. */
+    /** Registers the parameters of the processor. */
     void registerParameters() override;
 
     /** Called when a parameter value is updated. */
     void parameterValueChanged (Parameter* param) override;
+
+    /** Called when upstream signal chain changes. */
+    void updateSettings() override;
+
+    /** Called when acquisition starts. */
+    bool startAcquisition() override;
+
+    /** Called when acquisition stops. */
+    bool stopAcquisition() override;
+
+    /** Core processing callback — drains the OSC queue and fires TTL events. */
+    void process (AudioBuffer<float>& buffer) override;
 
     // Creates a tracking module and adds a tracking source
     bool addSource (String name, int port = 0, String address = "", String color = "");
@@ -287,17 +274,15 @@ private:
 
     bool m_positionIsUpdated;
     bool m_hasPendingMessages;
-    bool m_isInitialized = false;
 
     // Stim ON/OFF
     bool m_isOn;
 
-    // Time stim
+    // Time stim (probability window per process() callback)
     float m_timePassed;
-    int64 m_previousTime;
-    int64 m_currentTime;
     bool m_ttlTriggered;
-    int m_ttlPulseRemaining; // samples remaining for the current TTL pulse
+    bool m_ttlIsOn;    // true while a TTL pulse is active
+    int64 m_ttlOnSample; // absolute sample number when the TTL was turned on
 
     std::default_random_engine generator;
 
@@ -321,9 +306,6 @@ private:
 
     int m_outputChan; // Selected stimulation chan
     int m_selectedStimSource; // Selected stimulation source
-
-    // Per-source sample counters used to fill the DataBuffer
-    int64 totalSamples[MAX_SOURCES];
 
     OwnedArray<TrackingModule> trackers;
 

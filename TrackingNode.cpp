@@ -37,8 +37,8 @@ std::ostream&
 
 /** ------------- Tracking Node DataThread --------------- */
 
-TrackingNode::TrackingNode (SourceNode* sn)
-    : DataThread (sn),
+TrackingNode::TrackingNode()
+    : GenericProcessor ("Tracking Plugin"),
       m_isOn (true),
       m_positionIsUpdated (false),
       m_hasPendingMessages (false),
@@ -46,8 +46,6 @@ TrackingNode::TrackingNode (SourceNode* sn)
       m_selectedCircle (-1),
       m_selectedStimSource (-1),
       m_timePassed (0.0),
-      m_currentTime (0),
-      m_previousTime (0),
       m_timePassed_sim (0.0),
       m_currentTime_sim (0),
       m_previousTime_sim (0),
@@ -57,12 +55,12 @@ TrackingNode::TrackingNode (SourceNode* sn)
       m_outputChan (0),
       m_pulseDuration (DEF_DUR),
       m_ttlTriggered (false),
-      m_ttlPulseRemaining (0),
+      m_ttlIsOn (false),
+      m_ttlOnSample (0),
       m_stimMode (stim_mode::uniform),
       m_stimFreq (DEF_FREQ),
       m_stimSD (DEF_SD)
 {
-    memset (totalSamples, 0, sizeof (totalSamples));
 }
 
 void TrackingNode::registerParameters()
@@ -70,89 +68,16 @@ void TrackingNode::registerParameters()
     addBooleanParameter (Parameter::PROCESSOR_SCOPE, "StimOn", "Stim", "Toggle stimulation", true);
 }
 
-std::unique_ptr<GenericEditor> TrackingNode::createEditor (SourceNode* sn)
+AudioProcessorEditor* TrackingNode::createEditor()
 {
-    return std::make_unique<TrackingNodeEditor> (sn, this);
+    editor = std::make_unique<TrackingNodeEditor> (this);
+    return editor.get();
 }
 
-bool TrackingNode::foundInputSource()
+void TrackingNode::updateSettings()
 {
-    // OSC is always available — return true if at least one tracker is configured
-    return trackers.size() > 0;
-}
-
-void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChannels,
-                                   OwnedArray<EventChannel>* eventChannels,
-                                   OwnedArray<SpikeChannel>* spikeChannels,
-                                   OwnedArray<DataStream>* sourceStreams,
-                                   OwnedArray<DeviceInfo>* devices,
-                                   OwnedArray<ConfigurationObject>* configurationObjects)
-{
-    continuousChannels->clear();
-    eventChannels->clear();
-    spikeChannels->clear();
-    sourceStreams->clear();
-    devices->clear();
-    configurationObjects->clear();
-    sourceBuffers.clear();
-
-    for (int i = 0; i < trackers.size(); ++i)
+    for (auto stream : getDataStreams())
     {
-        // One DataStream per tracking source, with 4 continuous channels (x, y, w, h)
-        DataStream::Settings dsSettings {
-            trackers[i]->source.name,
-            "Tracking position data (x, y, width, height)",
-            "tracking." + trackers[i]->source.name.toLowerCase().replace (" ", "_"),
-            float (TRACKING_FREQ)
-        };
-        sourceStreams->add (new DataStream (dsSettings));
-        DataStream* stream = sourceStreams->getLast();
-
-        // Channel 0: x position
-        ContinuousChannel::Settings xSettings {
-            ContinuousChannel::Type::AUX,
-            "x",
-            "X position in frame pixels",
-            "tracking.x",
-            1.0f,
-            stream
-        };
-        continuousChannels->add (new ContinuousChannel (xSettings));
-
-        // Channel 1: y position
-        ContinuousChannel::Settings ySettings {
-            ContinuousChannel::Type::AUX,
-            "y",
-            "Y position in frame pixels",
-            "tracking.y",
-            1.0f,
-            stream
-        };
-        continuousChannels->add (new ContinuousChannel (ySettings));
-
-        // Channel 2: width
-        ContinuousChannel::Settings wSettings {
-            ContinuousChannel::Type::AUX,
-            "width",
-            "Frame width in pixels",
-            "tracking.width",
-            1.0f,
-            stream
-        };
-        continuousChannels->add (new ContinuousChannel (wSettings));
-
-        // Channel 3: height
-        ContinuousChannel::Settings hSettings {
-            ContinuousChannel::Type::AUX,
-            "height",
-            "Frame height in pixels",
-            "tracking.height",
-            1.0f,
-            stream
-        };
-        continuousChannels->add (new ContinuousChannel (hSettings));
-
-        // TTL event channel for stimulation output (one per source stream)
         EventChannel::Settings ttlSettings {
             EventChannel::Type::TTL,
             "Tracking stimulation output",
@@ -161,10 +86,7 @@ void TrackingNode::updateSettings (OwnedArray<ContinuousChannel>* continuousChan
             stream,
             8
         };
-        eventChannels->add (new EventChannel (ttlSettings));
-
-        // DataBuffer: 4 channels, large enough to hold ~10 s at TRACKING_FREQ
-        sourceBuffers.add (new DataBuffer (4, TRACKING_FREQ * 10));
+        eventChannels.add (new EventChannel (ttlSettings));
     }
 }
 
@@ -173,174 +95,168 @@ bool TrackingNode::startAcquisition()
     for (int i = 0; i < trackers.size(); ++i)
         trackers[i]->m_messageQueue->clear();
 
-    memset (totalSamples, 0, sizeof (totalSamples));
     m_hasPendingMessages = false;
     m_positionIsUpdated = false;
-    m_ttlPulseRemaining = 0;
+    m_ttlIsOn = false;
     m_ttlTriggered = false;
-    m_previousTime = Time::currentTimeMillis();
 
     LOGC ("Clearing tracking message queue(s) before starting acquisition");
 
-    startThread();
     return true;
 }
 
 bool TrackingNode::stopAcquisition()
 {
-    if (isThreadRunning())
-        signalThreadShouldExit();
-
-    stopThread (500);
     return true;
 }
 
-bool TrackingNode::updateBuffer()
+void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
 {
-    bool shouldSleep = false;
+    checkForEvents();
+
+    // Find the first available stream with an event channel for TTL output
+    auto streams = getDataStreams();
+    EventChannel* ttlChannel = nullptr;
+    int64 firstSample = 0;
+    float sampleRate = 1.0f;
+
+    if (! streams.isEmpty())
     {
-        const ScopedLock sl (lock);
+        const DataStream* stream = streams.getFirst();
+        uint16 streamId = stream->getStreamId();
+        firstSample = getFirstSampleNumberForBlock (streamId);
+        sampleRate = stream->getSampleRate();
 
-        if (! m_hasPendingMessages)
+        // Use sample count / sample rate for the stochastic probability window
+        uint32 numSamples = getNumSamplesInBlock (streamId);
+        m_timePassed = (sampleRate > 0.0f) ? float (numSamples) / sampleRate : 0.0f;
+
+        for (auto ch : eventChannels)
         {
-            shouldSleep = true;
-        }
-        else
-        {
-            m_currentTime = Time::currentTimeMillis();
-            m_timePassed = float (m_currentTime - m_previousTime) / 1000.f; // seconds
-
-            for (int i = 0; i < trackers.size(); ++i)
+            if (ch->getStreamId() == streamId)
             {
-                while (true)
-                {
-                    auto* msg = trackers[i]->m_messageQueue->pop();
-                    if (! msg)
-                        break;
-
-                    m_positionIsUpdated = true;
-
-                    // Keep positionData for the visualiser canvas
-                    trackers[i]->positionData.push_back (msg->position);
-
-                    // Update the live source state
-                    trackers[i]->source.x_pos = msg->position.x;
-                    trackers[i]->source.y_pos = msg->position.y;
-                    trackers[i]->source.width = msg->position.width;
-                    trackers[i]->source.height = msg->position.height;
-
-                    // Determine TTL state for this sample
-                    uint64 ttlCode = 0;
-
-                    if (m_ttlPulseRemaining > 0)
-                    {
-                        ttlCode = uint64 (1) << m_outputChan;
-                        --m_ttlPulseRemaining;
-                    }
-                    else if (m_isOn && m_selectedStimSource == i)
-                    {
-                        int circleIn = isPositionWithinCircles (msg->position.x, msg->position.y);
-
-                        if (circleIn != -1)
-                        {
-                            trackers[i]->source.positionInsideACircle = true;
-                            bool shouldTrigger = false;
-
-                            if (m_stimMode == stim_mode::ttl)
-                            {
-                                if (! m_ttlTriggered)
-                                {
-                                    shouldTrigger = true;
-                                    m_ttlTriggered = true;
-                                }
-                            }
-                            else
-                            {
-                                float stimInterval;
-                                if (m_stimMode == stim_mode::uniform)
-                                {
-                                    stimInterval = 1.f / m_stimFreq;
-                                }
-                                else // gauss
-                                {
-                                    float distNorm = m_circles[circleIn].distanceFromCenter (msg->position.x, msg->position.y)
-                                                     / m_circles[circleIn].getRad();
-                                    float k = -1.0f / std::log (m_stimSD);
-                                    float freqGauss = m_stimFreq * std::exp (-pow (distNorm, 2) / k);
-                                    stimInterval = 1.f / freqGauss;
-                                }
-
-                                float prob = m_timePassed / stimInterval;
-                                if (prob > 1.f)
-                                    LOGC ("WARNING: Tracking stimulation frequency exceeds sample rate.");
-
-                                std::uniform_real_distribution<float> dist (0.0f, 1.0f);
-                                if (dist (generator) < prob)
-                                    shouldTrigger = true;
-                            }
-
-                            if (shouldTrigger)
-                            {
-                                int pulseSamples = jmax (1, (int) (m_pulseDuration / 1000.0f * TRACKING_FREQ));
-                                m_ttlPulseRemaining = pulseSamples - 1; // consume first sample below
-                                ttlCode = uint64 (1) << m_outputChan;
-                            }
-                        }
-                        else
-                        {
-                            trackers[i]->source.positionInsideACircle = false;
-                            m_ttlTriggered = false;
-                        }
-                    }
-
-                    // Write position + TTL state to DataBuffer if one exists for this source
-                    if (i < sourceBuffers.size())
-                    {
-                        const float scaledX = msg->position.x * msg->position.width;
-                        const float scaledY = msg->position.y * msg->position.height;
-                        float data[4] = {
-                            scaledX,
-                            scaledY,
-                            msg->position.width,
-                            msg->position.height
-                        };
-
-                        int64 sampleNum = totalSamples[i];
-                        double timestamp = double (msg->timestamp) / 1000.0; // ms → s
-
-                        sourceBuffers[i]->addToBuffer (data, &sampleNum, &timestamp, &ttlCode, 1);
-                        ++totalSamples[i];
-                    }
-                }
+                ttlChannel = ch;
+                break;
             }
-
-            bool queuesEmpty = true;
-            for (int i = 0; i < trackers.size(); ++i)
-            {
-                if (! trackers[i]->m_messageQueue->isEmpty())
-                {
-                    queuesEmpty = false;
-                    break;
-                }
-            }
-
-            m_hasPendingMessages = ! queuesEmpty;
-
-            m_previousTime = m_currentTime;
         }
     }
 
-    if (shouldSleep)
+    // Turn off TTL pulse once the configured duration has elapsed (sample-accurate)
+    if (m_ttlIsOn && ttlChannel != nullptr && sampleRate > 0.0f)
     {
-        Thread::sleep (5); // avoid spinning; OSC data arrives at ~20 Hz
+        int64 pulseSamples = (int64) (m_pulseDuration / 1000.0f * sampleRate);
+        int64 offSample = m_ttlOnSample + pulseSamples;
+
+        if (firstSample >= offSample)
+        {
+            // Clamp to the current block if the off-sample is before its start
+            int offOffset = (int) jmax ((int64) 0, offSample - firstSample);
+            TTLEventPtr offEvent = TTLEvent::createTTLEvent (ttlChannel, offSample, m_outputChan, false);
+            addEvent (offEvent, offOffset);
+            m_ttlIsOn = false;
+            m_ttlTriggered = false;
+        }
     }
 
-    return true;
+    const ScopedLock sl (lock);
+
+    if (! m_hasPendingMessages)
+        return;
+
+    for (int i = 0; i < trackers.size(); ++i)
+    {
+        while (true)
+        {
+            auto* msg = trackers[i]->m_messageQueue->pop();
+            if (! msg)
+                break;
+
+            m_positionIsUpdated = true;
+
+            // Keep positionData for the visualiser canvas
+            trackers[i]->positionData.push_back (msg->position);
+
+            // Update the live source state
+            trackers[i]->source.x_pos = msg->position.x;
+            trackers[i]->source.y_pos = msg->position.y;
+            trackers[i]->source.width = msg->position.width;
+            trackers[i]->source.height = msg->position.height;
+
+            if (! m_ttlIsOn && m_isOn && m_selectedStimSource == i && ttlChannel != nullptr)
+            {
+                int circleIn = isPositionWithinCircles (msg->position.x, msg->position.y);
+
+                if (circleIn != -1)
+                {
+                    trackers[i]->source.positionInsideACircle = true;
+                    bool shouldTrigger = false;
+
+                    if (m_stimMode == stim_mode::ttl)
+                    {
+                        if (! m_ttlTriggered)
+                        {
+                            shouldTrigger = true;
+                            m_ttlTriggered = true;
+                        }
+                    }
+                    else
+                    {
+                        float stimInterval;
+                        if (m_stimMode == stim_mode::uniform)
+                        {
+                            stimInterval = 1.f / m_stimFreq;
+                        }
+                        else // gauss
+                        {
+                            float distNorm = m_circles[circleIn].distanceFromCenter (msg->position.x, msg->position.y)
+                                             / m_circles[circleIn].getRad();
+                            float k = -1.0f / std::log (m_stimSD);
+                            float freqGauss = m_stimFreq * std::exp (-pow (distNorm, 2) / k);
+                            stimInterval = 1.f / freqGauss;
+                        }
+
+                        float prob = m_timePassed / stimInterval;
+                        if (prob > 1.f)
+                            LOGC ("WARNING: Tracking stimulation frequency exceeds callback rate.");
+
+                        std::uniform_real_distribution<float> dist (0.0f, 1.0f);
+                        if (dist (generator) < prob)
+                            shouldTrigger = true;
+                    }
+
+                    if (shouldTrigger)
+                    {
+                        TTLEventPtr onEvent = TTLEvent::createTTLEvent (ttlChannel, firstSample, m_outputChan, true);
+                        addEvent (onEvent, 0);
+                        m_ttlIsOn = true;
+                        m_ttlOnSample = firstSample;
+                    }
+                }
+                else
+                {
+                    trackers[i]->source.positionInsideACircle = false;
+                    m_ttlTriggered = false;
+                }
+            }
+        }
+    }
+
+    bool queuesEmpty = true;
+    for (int i = 0; i < trackers.size(); ++i)
+    {
+        if (! trackers[i]->m_messageQueue->isEmpty())
+        {
+            queuesEmpty = false;
+            break;
+        }
+    }
+
+    m_hasPendingMessages = ! queuesEmpty;
 }
 
 bool TrackingNode::addSource (String srcName, int port, String address, String color)
 {
-    auto trackingEditor = (TrackingNodeEditor*) sn->getEditor();
+    auto trackingEditor = (TrackingNodeEditor*) getEditor();
     if (port == 0)
     {
         auto nTrackers = trackers.size();
@@ -370,7 +286,7 @@ bool TrackingNode::addSource (String srcName, int port, String address, String c
     {
         trackers.add (tm);
         LOGD ("Added tracking module!");
-        CoreServices::updateSignalChain (sn->getEditor());
+        CoreServices::updateSignalChain (getEditor());
         return true;
     }
     else
@@ -384,7 +300,7 @@ bool TrackingNode::addSource (String srcName, int port, String address, String c
 void TrackingNode::removeSource (int index)
 {
     trackers.remove (index);
-    CoreServices::updateSignalChain (sn->getEditor());
+    CoreServices::updateSignalChain (getEditor());
 }
 
 void TrackingNode::setPort (int i, int port)

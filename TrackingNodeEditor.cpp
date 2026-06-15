@@ -23,9 +23,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TrackingNode.h"
 #include "TrackingStimulatorCanvas.h"
 
-TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode, TrackingNode* thread_)
+TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
     : VisualizerEditor (parentNode, "Tracking"),
-      thread (thread_),
+      thread (static_cast<TrackingNode*> (parentNode)),
       selectedSource (-1),
       port (DEF_PORT),
       address (DEF_ADDRESS)

@@ -36,7 +36,7 @@ class TrackingNodeEditor : public VisualizerEditor,
 {
 public:
     /** Constructor */
-    TrackingNodeEditor (GenericProcessor* parentNode, TrackingNode* thread);
+    TrackingNodeEditor (GenericProcessor* parentNode);
 
     /** Destructor */
     ~TrackingNodeEditor() {}
@@ -71,7 +71,7 @@ public:
     String getColor();
 
 private:
-    /** Pointer to the underlying DataThread */
+    /** Pointer to the TrackingNode processor */
     TrackingNode* thread;
 
     std::unique_ptr<UtilityButton> plusButton;
