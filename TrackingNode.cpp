@@ -248,13 +248,11 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
         while (true)
         {
             auto* msg = trackers[i]->m_messageQueue->pop();
-            m_positionIsUpdated = true; // temporary for testing
 
             if (! msg)
                 break;
 
             m_positionIsUpdated = true;
-            LOGC ("Received tracking message for source ", i, ": x=", msg->position.x, ", y=", msg->position.y, ", width=", msg->position.width, ", height=", msg->position.height);
 
             trackers[i]->positionData.push_back (msg->position);
 
@@ -262,6 +260,7 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
             trackers[i]->source.y_pos = msg->position.y;
             trackers[i]->source.width = msg->position.width;
             trackers[i]->source.height = msg->position.height;
+
 
             if (! m_ttlIsOn && m_isOn && m_selectedStimSource == i
                 && ttlChannel != nullptr && nSamples > 0)
@@ -337,8 +336,6 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
 
             auto xGlobalIdx = getGlobalChannelIndex (streamId, i * 2);
             auto yGlobalIdx = getGlobalChannelIndex (streamId, i * 2 + 1);
-            LOGC ("streamId: ", streamId, " source: ", i, " xGlobalIdx: ", xGlobalIdx, " yGlobalIdx: ", yGlobalIdx);
-            LOGC ("num channels: ", continuousBuffer.getNumChannels(), " nSamples: ", nSamples);
 
             if (xGlobalIdx >= 0 && xGlobalIdx < continuousBuffer.getNumChannels())
             {

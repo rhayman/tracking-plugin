@@ -247,8 +247,7 @@ void TrackingStimulatorCanvas::paint (Graphics& g)
     g.setColour (findColour (ThemeColours::componentBackground)); //settings menu background color
     g.fillRoundedRectangle (getWidth() - settingsWidth - 10, 10, settingsWidth, settingsHeight - 20, 7.0f);
 
-    //std::cout << "Setting displayAxes bounds to " << plot_bottom_left_x << ", " << plot_bottom_left_y << ", " << camWidth << ", " << camHeight << std::endl;
-    displayAxes->repaint();
+    refresh();
 }
 
 void TrackingStimulatorCanvas::resized()
@@ -682,8 +681,7 @@ void TrackingStimulatorCanvas::updateSettings()
 void TrackingStimulatorCanvas::refresh()
 {
     if (processor->positionIsUpdated())
-    {
-        //std::cout << "Position is updated" << std::endl;
+    {   
 
         for (int i = 0; i < processor->getNumSources(); i++)
         {
@@ -991,7 +989,11 @@ DisplayAxes::~DisplayAxes() {}
 
 void DisplayAxes::addPosition (int index, TrackingPosition& postionData)
 {
+    if (m_positions[index].size() > 50000) {
+        m_positions[index].pop_back();
+    }
     m_positions[index].push_back (postionData);
+    //LOGC("m_positions size", m_positions[index].size());
 }
 
 void DisplayAxes::paint (Graphics& g)
@@ -1063,13 +1065,13 @@ void DisplayAxes::paint (Graphics& g)
 
     int selectedSource = processor->getSelectedStimSource();
 
+
     if (selectedSource != -1)
     {
         TrackingSources& source = processor->getTrackingSource (selectedSource);
         Colour source_colour = color_palette[source.color];
         g.setColour (source_colour);
 
-        std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
 
         // Plot trajectory as lines
         if (m_positions[selectedSource].size() >= 2)
@@ -1089,11 +1091,11 @@ void DisplayAxes::paint (Graphics& g)
                     float x_prev = getWidth() * prev_position.x;
                     float y_prev = getHeight() * prev_position.y;
                     g.drawLine (x_prev, y_prev, x, y, 5.0f);
-                    std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
+                    //std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
                 }
                 else
                 {
-                    std::cout << "Not drawing line" << std::endl;
+                    //std::cout << "Not drawing line" << std::endl;
                 }
             }
             // Plot current position as ellipse
@@ -1105,11 +1107,11 @@ void DisplayAxes::paint (Graphics& g)
 
                 g.fillEllipse (x - 0.01 * getHeight(), y - 0.01 * getHeight(), 0.02 * getHeight(), 0.02 * getHeight());
 
-                std::cout << "Drawing point." << std::endl;
+                //std::cout << "Drawing point." << std::endl;
             }
             else
             {
-                std::cout << "Not drawing point" << std::endl;
+                //std::cout << "Not drawing point" << std::endl;
             }
         }
     }
