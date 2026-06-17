@@ -161,12 +161,15 @@ bool TrackingNode::startAcquisition()
     m_samplesAccumulated = 0.0;
 
     LOGC ("Clearing tracking message queue(s) before starting acquisition");
+    ((TrackingNodeEditor*) getEditor())->enable();
 
     return true;
 }
 
 bool TrackingNode::stopAcquisition()
 {
+    ((TrackingNodeEditor*) getEditor())->disable();
+
     return true;
 }
 
@@ -260,7 +263,6 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
             trackers[i]->source.y_pos = msg->position.y;
             trackers[i]->source.width = msg->position.width;
             trackers[i]->source.height = msg->position.height;
-
 
             if (! m_ttlIsOn && m_isOn && m_selectedStimSource == i
                 && ttlChannel != nullptr && nSamples > 0)
@@ -658,6 +660,8 @@ void TrackingNode::receiveMessage (int port, String address, const TrackingData&
             outputMessage.timestamp = ts;
             trackers[i]->m_messageQueue->push (outputMessage);
             m_hasPendingMessages = true;
+            // LOGC ("Received tracking message from port ", port, " at address ", address, " with timestamp ", ts);
+            // LOGC ("x is ", message.position.x, " y is ", message.position.y, " width is ", message.position.width, " height is ", message.position.height);
         }
     }
 }

@@ -68,7 +68,7 @@ public:
     void comboBoxChanged (ComboBox* comboBox) override;
 
     // Visualizer interface
-    void refreshState() override;
+    void refreshState() override {};
     void updateSettings() override;
     void refresh() override;
     void beginAnimation() override;

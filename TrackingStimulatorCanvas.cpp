@@ -247,7 +247,10 @@ void TrackingStimulatorCanvas::paint (Graphics& g)
     g.setColour (findColour (ThemeColours::componentBackground)); //settings menu background color
     g.fillRoundedRectangle (getWidth() - settingsWidth - 10, 10, settingsWidth, settingsHeight - 20, 7.0f);
 
-    refresh();
+    displayAxes->repaint();
+    // i was calling refresh() here but it was causing a crash
+    // such that you couldnt close / interact with the GUI
+    //
 }
 
 void TrackingStimulatorCanvas::resized()
@@ -644,10 +647,6 @@ void TrackingStimulatorCanvas::labelTextChanged (Label* label)
     }
 }
 
-void TrackingStimulatorCanvas::refreshState()
-{
-}
-
 void TrackingStimulatorCanvas::updateSettings()
 {
     availableSources->clear();
@@ -681,8 +680,7 @@ void TrackingStimulatorCanvas::updateSettings()
 void TrackingStimulatorCanvas::refresh()
 {
     if (processor->positionIsUpdated())
-    {   
-
+    {
         for (int i = 0; i < processor->getNumSources(); i++)
         {
             auto positionData = processor->getTrackingPositions (i);
@@ -989,11 +987,10 @@ DisplayAxes::~DisplayAxes() {}
 
 void DisplayAxes::addPosition (int index, TrackingPosition& postionData)
 {
-    if (m_positions[index].size() > 50000) {
-        m_positions[index].pop_back();
-    }
     m_positions[index].push_back (postionData);
-    //LOGC("m_positions size", m_positions[index].size());
+    // LOGC ("addPosition in displayAxes");
+    // LOGC ("m_positions size", m_positions[index].size());
+    // this works now but the m_positions vector is just growing
 }
 
 void DisplayAxes::paint (Graphics& g)
@@ -1012,11 +1009,11 @@ void DisplayAxes::paint (Graphics& g)
             cur_y = processor->getCircles()[i].getY();
             cur_rad = processor->getCircles()[i].getRad();
 
-            x_c = int (cur_x * getWidth());
-            y_c = int (cur_y * getHeight());
+            x_c = int (cur_x);
+            y_c = int (cur_y);
 
-            radx = int (cur_rad * getWidth());
-            rady = int (cur_rad * getHeight());
+            radx = int (cur_rad);
+            rady = int (cur_rad);
             // center ellipse
             x = x_c - radx;
             y = y_c - rady;
@@ -1065,14 +1062,15 @@ void DisplayAxes::paint (Graphics& g)
 
     int selectedSource = processor->getSelectedStimSource();
 
-
     if (selectedSource != -1)
     {
+        // LOGC ("Selected source", selectedSource);
+
         TrackingSources& source = processor->getTrackingSource (selectedSource);
         Colour source_colour = color_palette[source.color];
         g.setColour (source_colour);
 
-
+        // LOGC ("m_positions size : ", m_positions[selectedSource].size());
         // Plot trajectory as lines
         if (m_positions[selectedSource].size() >= 2)
         {
@@ -1086,32 +1084,32 @@ void DisplayAxes::paint (Graphics& g)
                 // if tracking data are empty positions are set to -1
                 if (prev_position.x != -1 && prev_position.y != -1)
                 {
-                    float x = getWidth() * position.x;
-                    float y = getHeight() * position.y;
-                    float x_prev = getWidth() * prev_position.x;
-                    float y_prev = getHeight() * prev_position.y;
+                    float x = position.x;
+                    float y = position.y;
+                    float x_prev = prev_position.x;
+                    float y_prev = prev_position.y;
                     g.drawLine (x_prev, y_prev, x, y, 5.0f);
-                    //std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
+                    // std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
                 }
                 else
                 {
-                    //std::cout << "Not drawing line" << std::endl;
+                    // std::cout << "Not drawing line" << std::endl;
                 }
             }
             // Plot current position as ellipse
             if (! m_positions[selectedSource].empty())
             {
                 TrackingPosition position = m_positions[selectedSource].back();
-                float x = getWidth() * position.x;
-                float y = getHeight() * position.y;
+                float x = position.x;
+                float y = position.y;
 
-                g.fillEllipse (x - 0.01 * getHeight(), y - 0.01 * getHeight(), 0.02 * getHeight(), 0.02 * getHeight());
+                g.fillEllipse (x - 0.01, y - 0.01, 0.02, 0.02);
 
-                //std::cout << "Drawing point." << std::endl;
+                // std::cout << "Drawing point." << std::endl;
             }
             else
             {
-                //std::cout << "Not drawing point" << std::endl;
+                // std::cout << "Not drawing point" << std::endl;
             }
         }
     }
@@ -1122,10 +1120,10 @@ void DisplayAxes::paint (Graphics& g)
         // draw circle increasing in size
         int x_c, y_c, x, y, radx, rady;
 
-        x_c = int (m_newX * getWidth());
-        y_c = int (m_newY * getHeight());
-        radx = int (m_tempRad * getWidth());
-        rady = int (m_tempRad * getHeight());
+        x_c = int (m_newX);
+        y_c = int (m_newY);
+        radx = int (m_tempRad);
+        rady = int (m_tempRad);
         // center ellipse
         x = x_c - radx;
         y = y_c - rady;
