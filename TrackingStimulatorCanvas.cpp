@@ -995,7 +995,7 @@ void DisplayAxes::addPosition (int index, TrackingPosition& postionData)
 
 void DisplayAxes::paint (Graphics& g)
 {
-    g.setColour (Colour (0, 18, 43)); //background color
+     g.setColour (Colour (0, 18, 43)); //background color
     g.fillAll();
 
     if (canvas->getUpdateCircle())
@@ -1009,11 +1009,11 @@ void DisplayAxes::paint (Graphics& g)
             cur_y = processor->getCircles()[i].getY();
             cur_rad = processor->getCircles()[i].getRad();
 
-            x_c = int (cur_x);
-            y_c = int (cur_y);
+            x_c = int (cur_x * getWidth());
+            y_c = int (cur_y * getHeight());
 
-            radx = int (cur_rad);
-            rady = int (cur_rad);
+            radx = int (cur_rad * getWidth());
+            rady = int (cur_rad * getHeight());
             // center ellipse
             x = x_c - radx;
             y = y_c - rady;
@@ -1064,13 +1064,12 @@ void DisplayAxes::paint (Graphics& g)
 
     if (selectedSource != -1)
     {
-        // LOGC ("Selected source", selectedSource);
-
         TrackingSources& source = processor->getTrackingSource (selectedSource);
         Colour source_colour = color_palette[source.color];
         g.setColour (source_colour);
 
-        // LOGC ("m_positions size : ", m_positions[selectedSource].size());
+        //std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
+
         // Plot trajectory as lines
         if (m_positions[selectedSource].size() >= 2)
         {
@@ -1084,10 +1083,10 @@ void DisplayAxes::paint (Graphics& g)
                 // if tracking data are empty positions are set to -1
                 if (prev_position.x != -1 && prev_position.y != -1)
                 {
-                    float x = position.x;
-                    float y = position.y;
-                    float x_prev = prev_position.x;
-                    float y_prev = prev_position.y;
+                    float x = getWidth() * position.x;
+                    float y = getHeight() * position.y;
+                    float x_prev = getWidth() * prev_position.x;
+                    float y_prev = getHeight() * prev_position.y;
                     g.drawLine (x_prev, y_prev, x, y, 5.0f);
                     // std::cout << "Drawing line " << x_prev << ", " << y_prev << ", " << x << ", " << y << std::endl;
                 }
@@ -1100,16 +1099,16 @@ void DisplayAxes::paint (Graphics& g)
             if (! m_positions[selectedSource].empty())
             {
                 TrackingPosition position = m_positions[selectedSource].back();
-                float x = position.x;
-                float y = position.y;
+                float x = getWidth() * position.x;
+                float y = getHeight() * position.y;
 
-                g.fillEllipse (x - 0.01, y - 0.01, 0.02, 0.02);
+                g.fillEllipse (x - 0.01 * getHeight(), y - 0.01 * getHeight(), 0.02 * getHeight(), 0.02 * getHeight());
 
-                // std::cout << "Drawing point." << std::endl;
+                //std::cout << "Drawing point." << std::endl;
             }
             else
             {
-                // std::cout << "Not drawing point" << std::endl;
+                //std::cout << "Not drawing point" << std::endl;
             }
         }
     }
@@ -1120,10 +1119,10 @@ void DisplayAxes::paint (Graphics& g)
         // draw circle increasing in size
         int x_c, y_c, x, y, radx, rady;
 
-        x_c = int (m_newX);
-        y_c = int (m_newY);
-        radx = int (m_tempRad);
-        rady = int (m_tempRad);
+        x_c = int (m_newX * getWidth());
+        y_c = int (m_newY * getHeight());
+        radx = int (m_tempRad * getWidth());
+        rady = int (m_tempRad * getHeight());
         // center ellipse
         x = x_c - radx;
         y = y_c - rady;

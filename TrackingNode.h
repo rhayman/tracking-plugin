@@ -41,7 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEF_FREQ 2
 #define DEF_SD 0.5
 #define DEF_DUR 50
-#define TRACKING_FREQ 20
+#define TRACKING_FREQ 50
 #define MAX_CIRCLES 9
 
 typedef enum

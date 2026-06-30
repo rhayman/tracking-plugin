@@ -352,6 +352,7 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
                 for (int s = 0; s < nSamples; ++s)
                     yPtr[s] = yVal;
             }
+            
         }
     }
 
@@ -658,6 +659,8 @@ void TrackingNode::receiveMessage (int port, String address, const TrackingData&
             int64 ts = CoreServices::getSystemTime();
             TrackingData outputMessage = message;
             outputMessage.timestamp = ts;
+            //outputMessage.position.x = outputMessage.position.x*outputMessage.position.width;
+            //outputMessage.position.y = outputMessage.position.y*outputMessage.position.height;
             trackers[i]->m_messageQueue->push (outputMessage);
             m_hasPendingMessages = true;
             // LOGC ("Received tracking message from port ", port, " at address ", address, " with timestamp ", ts);
