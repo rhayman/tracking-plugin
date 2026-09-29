@@ -341,16 +341,12 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
 
             if (xGlobalIdx >= 0 && xGlobalIdx < continuousBuffer.getNumChannels())
             {
-                float* xPtr = continuousBuffer.getWritePointer (xGlobalIdx);
-                for (int s = 0; s < nSamples; ++s)
-                    xPtr[s] = xVal;
+                FloatVectorOperations::fill (continuousBuffer.getWritePointer (xGlobalIdx), xVal, nSamples);
             }
 
             if (yGlobalIdx >= 0 && yGlobalIdx < continuousBuffer.getNumChannels())
             {
-                float* yPtr = continuousBuffer.getWritePointer (yGlobalIdx);
-                for (int s = 0; s < nSamples; ++s)
-                    yPtr[s] = yVal;
+                FloatVectorOperations::fill (continuousBuffer.getWritePointer (yGlobalIdx), yVal, nSamples);
             }
         }
     }
