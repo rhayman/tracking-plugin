@@ -26,10 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TrackingMessage.h"
 #include <ProcessorHeaders.h>
 
-#include <queue>
 #include <random>
-#include <stdio.h>
-#include <utility>
 
 #define BUFFER_SIZE 4096
 #define MAX_SOURCES 10
@@ -50,6 +47,9 @@ typedef enum
     gauss,
     ttl
 } stim_mode;
+
+// forward declare canvas class
+class TrackingStimulatorCanvas;
 
 //	This helper class allows stores input tracking data in a circular queue.
 class TrackingQueue
@@ -159,6 +159,17 @@ private:
     float m_rad;
 };
 
+class TrackingNodeSettings
+{
+public:
+    TrackingNodeSettings() {};
+    String name;
+    int port;
+    String address;
+    String colour;
+    bool apply;
+};
+
 class TrackingNode : public GenericProcessor
 {
 public:
@@ -168,6 +179,11 @@ public:
     /** The class destructor, used to deallocate memory */
     ~TrackingNode() {}
 
+    // ------------------------------------------------------------
+    //                      DEBUGGING
+    // ------------------------------------------------------------
+    int getNStreams() const;
+    int debug() { return 1; };
     // ------------------------------------------------------------
     //                   VIRTUAL METHODS
     // ------------------------------------------------------------
@@ -274,6 +290,7 @@ public:
                              "grey",
                              "violet",
                              "yellow" };
+    TrackingStimulatorCanvas* canvas = nullptr;
 
 private:
     CriticalSection lock;
@@ -310,10 +327,11 @@ private:
     stim_mode m_stimMode;
     int m_pulseDuration;
 
-    int m_outputChan; // Selected stimulation chan
+    int m_outputChan = 0; // Selected stimulation chan
     int m_selectedStimSource; // Selected stimulation source
 
     OwnedArray<TrackingModule> trackers;
+    StreamSettings<TrackingNodeSettings> m_settings;
 
     // Continuous-output timing state (SOURCE mode)
     int64 m_sampleNumber;
