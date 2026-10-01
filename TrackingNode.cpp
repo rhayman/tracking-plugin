@@ -64,6 +64,7 @@ TrackingNode::TrackingNode()
       m_lastProcessTicks (0),
       m_samplesAccumulated (0.0)
 {
+    setProcessorType (Plugin::Processor::SOURCE);
 }
 
 void TrackingNode::registerParameters()
@@ -116,6 +117,13 @@ void TrackingNode::updateSettings()
         if (_stream->getName().equalsIgnoreCase ("Tracking"))
         {
             DataStream* stream = getDataStream (_stream->getName());
+            if (stream == nullptr)
+                continue;
+
+            stream->clearChannels();
+            continuousChannels.clear (true);
+            eventChannels.clear (true);
+
             // Two continuous channels per tracker: X position and Y position (both scaled
             // to pixel units by multiplying the normalised (0-1) value by width / height).
             LOGC ("in updateSettings(), creating continuous channels for trackers");
@@ -170,6 +178,9 @@ void TrackingNode::parameterValueChanged (Parameter* param)
         if (stream->getName().equalsIgnoreCase ("Tracking"))
         {
             auto this_node = m_settings[stream->getStreamId()];
+            if (this_node == nullptr)
+                continue;
+
             if (param->getName() == "tracking_sources")
             {
                 this_node->name = ((CategoricalParameter*) (param))->getSelectedString();
@@ -223,14 +234,16 @@ bool TrackingNode::startAcquisition()
     m_samplesAccumulated = 0.0;
 
     LOGC ("Clearing tracking message queue(s) before starting acquisition");
-    ((TrackingNodeEditor*) getEditor())->enable();
+    if (auto* trackingEditor = static_cast<TrackingNodeEditor*> (getEditor()))
+        trackingEditor->enable();
 
     return true;
 }
 
 bool TrackingNode::stopAcquisition()
 {
-    ((TrackingNodeEditor*) getEditor())->disable();
+    if (auto* trackingEditor = static_cast<TrackingNodeEditor*> (getEditor()))
+        trackingEditor->disable();
 
     return true;
 }
@@ -430,13 +443,14 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
 }
 int TrackingNode::getNStreams() const
 {
-    auto s = getDataStreams();
     return 1;
 }
 bool TrackingNode::addSource (String srcName, int port, String address, String color)
 {
-    auto trackingEditor = (TrackingNodeEditor*) getEditor();
-    // LOGC ("Adding source: ", srcName, " port: ", port, " address: ", address, " color: ", color);
+    auto* portParameter = getParameter ("port");
+    auto* addressParameter = getParameter ("address");
+    auto* colorParameter = getParameter ("colour");
+
     if (port == 0)
     {
         if (! trackers.isEmpty())
@@ -448,41 +462,27 @@ bool TrackingNode::addSource (String srcName, int port, String address, String c
         }
         else
         {
-            port = m_settings[0]->port;
+            port = portParameter != nullptr ? static_cast<int> (portParameter->getValue()) : DEF_PORT;
         }
     }
 
+    if (color.isEmpty() && colorParameter != nullptr)
+        color = static_cast<String> (colorParameter->getValue());
     if (color.isEmpty())
-        color = trackingEditor->getColor();
+        color = DEF_COLOR;
 
+    if (address.isEmpty() && addressParameter != nullptr)
+        address = static_cast<String> (addressParameter->getValue());
     if (address.isEmpty())
-        address = trackingEditor->getAddress();
+        address = DEF_ADDRESS;
 
-    // LOGC ("here");
-    for (auto _stream : getDataStreams())
-    {
-        LOGC ("stream name: ", _stream->getName());
-        if (_stream->getName().equalsIgnoreCase ("Tracking"))
-        {
-            LOGC ("here");
-            uint16 streamId = _stream->getStreamId();
-            LOGC ("streamId: ", streamId);
-            port = m_settings[streamId]->port;
-            LOGC ("port: ", port);
-            address = m_settings[streamId]->address;
-            LOGC ("address: ", address);
-            color = m_settings[streamId]->colour;
-            LOGC ("color: ", color);
-            LOGD ("Adding tracking module...");
-        }
-    }
     auto* tm = new TrackingModule (srcName, port, address, color, this);
 
     if (tm->isConnected)
     {
         trackers.add (tm);
         LOGD ("Added tracking module!");
-        CoreServices::updateSignalChain (getEditor());
+        CoreServices::updateSignalChain (this);
         return true;
     }
     else
@@ -498,7 +498,7 @@ void TrackingNode::removeSource (int index)
     if (trackers.size() == 0 || index < 0 || index >= trackers.size())
         return;
     trackers.remove (index);
-    CoreServices::updateSignalChain (getEditor());
+    CoreServices::updateSignalChain (this);
 }
 
 void TrackingNode::setPort (int i, int port)

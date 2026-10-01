@@ -60,7 +60,7 @@ public:
 
 private:
     /** Pointer to the TrackingNode processor */
-    std::unique_ptr<TrackingNode> node;
+    TrackingNode* node;
 
     std::unique_ptr<UtilityButton> plusButton;
     std::unique_ptr<UtilityButton> minusButton;
@@ -74,7 +74,7 @@ private:
     std::unique_ptr<Label> colorLabel;
     std::unique_ptr<ComboBox> colorSelector;
 
-    int selectedSource;
+    int selectedSource = -1;
 
     int port;
     String address;
