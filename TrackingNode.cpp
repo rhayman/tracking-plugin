@@ -97,7 +97,6 @@ void TrackingNode::updateSettings()
     // As a SOURCE, create our own DataStream (one per plugin instance).
     if (getDataStreams().isEmpty())
     {
-        LOGC ("Creating new data stream for TrackingNode");
         DataStream::Settings streamSettings {
             "Tracking",
             "Position data received via OSC",
@@ -536,7 +535,6 @@ void TrackingNode::setAddress (int i, String address)
     {
         auto module = new TrackingModule (name, port, address, color, this);
         trackers.set (i, module, true);
-        LOGC ("Set address to ", address, " for ", trackers[i]->m_name);
     }
     catch (const std::runtime_error& e)
     {
@@ -563,7 +561,6 @@ void TrackingNode::setColor (int i, String color)
     }
     trackers[i]->m_color = color;
     trackers[i]->source.color = color;
-    LOGC ("Set color to ", color, " for ", trackers[i]->m_name);
 }
 
 String TrackingNode::getColor (int i)
