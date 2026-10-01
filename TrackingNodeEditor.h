@@ -64,14 +64,13 @@ private:
 
     std::unique_ptr<UtilityButton> plusButton;
     std::unique_ptr<UtilityButton> minusButton;
-    std::unique_ptr<Label> sourceLabel;
     std::unique_ptr<ComboBox> trackingSourceSelector;
 
-    std::unique_ptr<Label> portLabel;
-    std::unique_ptr<CustomTextBox> portEditor;
-    std::unique_ptr<Label> addressLabel;
-    std::unique_ptr<CustomTextBox> addressEditor;
-    std::unique_ptr<Label> colorLabel;
+    // std::unique_ptr<Label> portLabel;
+    // std::unique_ptr<CustomTextBox> portEditor;
+    // std::unique_ptr<Label> addressLabel;
+    // std::unique_ptr<CustomTextBox> addressEditor;
+    // std::unique_ptr<Label> colorLabel;
     std::unique_ptr<ComboBox> colorSelector;
 
     int selectedSource = -1;
@@ -80,7 +79,7 @@ private:
     String address;
 
     /** Updates the editor's UI components to match the current state */
-    void updateCustomView() override;
+    // void updateCustomView() override;
 
     /** Generates an assertion if this class leaks */
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TrackingNodeEditor);
