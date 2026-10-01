@@ -1067,7 +1067,9 @@ void DisplayAxes::paint (Graphics& g)
         // LOGC ("Selected source", selectedSource);
 
         TrackingSources& source = processor->getTrackingSource (selectedSource);
-        Colour source_colour = color_palette[source.color];
+        // Colour source_colour = color_palette[source.color];
+        // TODO: source.color is not being set correctly, so for now just use red
+        Colour source_colour = color_palette["red"];
         g.setColour (source_colour);
 
         // LOGC ("m_positions size : ", m_positions[selectedSource].size());
