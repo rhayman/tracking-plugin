@@ -164,10 +164,10 @@ class TrackingNodeSettings
 public:
     TrackingNodeSettings() {};
     String name;
-    int port;
-    String address;
-    String colour;
-    bool apply;
+    int port = DEF_PORT;
+    String address = String (DEF_ADDRESS);
+    String colour = String (DEF_COLOR);
+    bool apply = true;
 };
 
 class TrackingNode : public GenericProcessor

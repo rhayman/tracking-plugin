@@ -24,7 +24,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TrackingStimulatorCanvas.h"
 
 TrackingNodeEditor::TrackingNodeEditor (GenericProcessor* parentNode)
-    : VisualizerEditor (parentNode, "Tracking")
+    : VisualizerEditor (parentNode, "Tracking"),
+      node (static_cast<TrackingNode*> (parentNode))
 {
     desiredWidth = 450;
     minusButton = std::make_unique<UtilityButton> ("-");
@@ -77,13 +78,6 @@ void TrackingNodeEditor::buttonClicked (Button* button)
         }
 
         String txt = "Tracking source " + String (newId);
-        Parameter* portParam = getProcessor()->getParameter ("port");
-        Parameter* addressParam = getProcessor()->getParameter ("address");
-        Parameter* colorParam = getProcessor()->getParameter ("colour");
-        auto _port = (int) portParam->getValue();
-        auto _address = (String) addressParam->getValue();
-        auto _colour = (String) colorParam->getValue();
-
         if (node->addSource (String (txt))) // check if adding the source was successfull
         {
             trackingSourceSelector->addItem (txt, newId);
