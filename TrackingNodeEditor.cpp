@@ -189,28 +189,28 @@ String TrackingNodeEditor::getColor() const
     return (String) colorParam->getValue();
 }
 
-void TrackingNodeEditor::updateCustomView()
-{
-    int newPort = node->getPort (selectedSource);
-
-    if (newPort == 0)
-        newPort = DEF_PORT;
-
-    portEditor->setText (String (newPort), dontSendNotification);
-    port = newPort;
-
-    String newAddr = node->getAddress (selectedSource);
-
-    if (newAddr.isEmpty())
-        newAddr = DEF_ADDRESS;
-
-    addressEditor->setText (newAddr, dontSendNotification);
-    address = newAddr;
-
-    String color = node->getColor (selectedSource);
-
-    if (color.isEmpty())
-        color = DEF_COLOR;
-
-    colorSelector->setSelectedId (node->colors.indexOf (color) + 1, dontSendNotification);
-}
+// void TrackingNodeEditor::updateCustomView()
+// {
+// int newPort = node->getPort (selectedSource);
+//
+// if (newPort == 0)
+//     newPort = DEF_PORT;
+//
+// portEditor->setText (String (newPort), dontSendNotification);
+// port = newPort;
+//
+// String newAddr = node->getAddress (selectedSource);
+//
+// if (newAddr.isEmpty())
+//     newAddr = DEF_ADDRESS;
+//
+// addressEditor->setText (newAddr, dontSendNotification);
+// address = newAddr;
+//
+// String color = node->getColor (selectedSource);
+//
+// if (color.isEmpty())
+//     color = DEF_COLOR;
+//
+// colorSelector->setSelectedId (node->colors.indexOf (color) + 1, dontSendNotification);
+// }

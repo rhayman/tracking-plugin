@@ -112,63 +112,52 @@ void TrackingNode::updateSettings()
 
     m_settings.update (getDataStreams());
 
-    for (auto _stream : getDataStreams())
+    DataStream* stream = dataStreams.getLast();
+    stream->clearChannels();
+    continuousChannels.clear (true);
+    eventChannels.clear (true);
+
+    // Two continuous channels per tracker: X position and Y position (both scaled
+    // to pixel units by multiplying the normalised (0-1) value by width / height).
+
+    for (int i = 0; i < trackers.size(); ++i)
     {
-        if (_stream->getName().equalsIgnoreCase ("Tracking"))
-        {
-            DataStream* stream = getDataStream (_stream->getName());
-            if (stream == nullptr)
-                continue;
+        String trackerName = trackers[i]->m_name;
 
-            stream->clearChannels();
-            continuousChannels.clear (true);
-            eventChannels.clear (true);
+        ContinuousChannel::Settings xSettings {
+            ContinuousChannel::Type::AUX,
+            trackerName + " X",
+            "X position scaled by frame width (pixels)",
+            "tracking.position.x",
+            1.0f, // bitVolts: 1 count == 1 pixel
+            stream
+        };
+        continuousChannels.add (new ContinuousChannel (xSettings));
+        continuousChannels.getLast()->addProcessor (this);
 
-            // Two continuous channels per tracker: X position and Y position (both scaled
-            // to pixel units by multiplying the normalised (0-1) value by width / height).
-            LOGC ("in updateSettings(), creating continuous channels for trackers");
-            LOGC ("trackers.size() = ", trackers.size());
-
-            for (int i = 0; i < trackers.size(); ++i)
-            {
-                String trackerName = trackers[i]->m_name;
-
-                ContinuousChannel::Settings xSettings {
-                    ContinuousChannel::Type::AUX,
-                    trackerName + " X",
-                    "X position scaled by frame width (pixels)",
-                    "tracking.position.x",
-                    1.0f, // bitVolts: 1 count == 1 pixel
-                    stream
-                };
-                continuousChannels.add (new ContinuousChannel (xSettings));
-                continuousChannels.getLast()->addProcessor (this);
-
-                ContinuousChannel::Settings ySettings {
-                    ContinuousChannel::Type::AUX,
-                    trackerName + " Y",
-                    "Y position scaled by frame height (pixels)",
-                    "tracking.position.y",
-                    1.0f,
-                    stream
-                };
-                continuousChannels.add (new ContinuousChannel (ySettings));
-                continuousChannels.getLast()->addProcessor (this);
-            }
-
-            // TTL event channel for stimulation output.
-            EventChannel::Settings ttlSettings {
-                EventChannel::Type::TTL,
-                "Tracking stimulation output",
-                "Triggers whenever the tracked position enters a stimulation ROI",
-                "tracking.event",
-                stream,
-                8
-            };
-            eventChannels.add (new EventChannel (ttlSettings));
-            eventChannels.getLast()->addProcessor (this);
-        }
+        ContinuousChannel::Settings ySettings {
+            ContinuousChannel::Type::AUX,
+            trackerName + " Y",
+            "Y position scaled by frame height (pixels)",
+            "tracking.position.y",
+            1.0f,
+            stream
+        };
+        continuousChannels.add (new ContinuousChannel (ySettings));
+        continuousChannels.getLast()->addProcessor (this);
     }
+
+    // TTL event channel for stimulation output.
+    EventChannel::Settings ttlSettings {
+        EventChannel::Type::TTL,
+        "Tracking stimulation output",
+        "Triggers whenever the tracked position enters a stimulation ROI",
+        "tracking.event",
+        stream,
+        8
+    };
+    eventChannels.add (new EventChannel (ttlSettings));
+    eventChannels.getLast()->addProcessor (this);
 }
 
 void TrackingNode::parameterValueChanged (Parameter* param)
@@ -407,16 +396,18 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
         ContinuousChannel* yChannel = channels[yLocalIndex];
 
         if (xChannel == nullptr || yChannel == nullptr)
+        {
             continue;
+        }
 
         const int xGlobalIndex = xChannel->getGlobalIndex();
         const int yGlobalIndex = yChannel->getGlobalIndex();
 
         const float xValue = tracker->source.x_pos >= 0.0f
-                                 ? tracker->source.x_pos * tracker->source.width
+                                 ? tracker->source.x_pos // * tracker->source.width
                                  : 0.0f;
         const float yValue = tracker->source.y_pos >= 0.0f
-                                 ? tracker->source.y_pos * tracker->source.height
+                                 ? tracker->source.y_pos // * tracker->source.height
                                  : 0.0f;
 
         if (xGlobalIndex >= 0 && xGlobalIndex < continuousBuffer.getNumChannels())
@@ -441,10 +432,7 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
     }
     m_hasPendingMessages = ! queuesEmpty;
 }
-int TrackingNode::getNStreams() const
-{
-    return 1;
-}
+
 bool TrackingNode::addSource (String srcName, int port, String address, String color)
 {
     auto* portParameter = getParameter ("port");
@@ -481,13 +469,13 @@ bool TrackingNode::addSource (String srcName, int port, String address, String c
     if (tm->isConnected)
     {
         trackers.add (tm);
-        LOGD ("Added tracking module!");
+        LOGC ("Added tracking module!");
         CoreServices::updateSignalChain (this);
         return true;
     }
     else
     {
-        LOGD ("Unable to bind to port: ", port);
+        LOGC ("Unable to bind to port: ", port);
         delete tm;
         return false;
     }
@@ -575,6 +563,7 @@ void TrackingNode::setColor (int i, String color)
     }
     trackers[i]->m_color = color;
     trackers[i]->source.color = color;
+    LOGC ("Set color to ", color, " for ", trackers[i]->m_name);
 }
 
 String TrackingNode::getColor (int i)
@@ -731,8 +720,6 @@ void TrackingNode::receiveMessage (int port, String address, const TrackingData&
             outputMessage.timestamp = ts;
             trackers[i]->m_messageQueue->push (outputMessage);
             m_hasPendingMessages = true;
-            // LOGC ("Received tracking message from port ", port, " at address ", address, " with timestamp ", ts);
-            // LOGC ("x is ", message.position.x, " y is ", message.position.y, " width is ", message.position.width, " height is ", message.position.height);
         }
     }
 }
