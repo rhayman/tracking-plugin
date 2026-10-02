@@ -26,10 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TrackingMessage.h"
 #include <ProcessorHeaders.h>
 
-#include <queue>
 #include <random>
-#include <stdio.h>
-#include <utility>
 
 #define BUFFER_SIZE 4096
 #define MAX_SOURCES 10
@@ -50,6 +47,9 @@ typedef enum
     gauss,
     ttl
 } stim_mode;
+
+// forward declare canvas class
+class TrackingStimulatorCanvas;
 
 //	This helper class allows stores input tracking data in a circular queue.
 class TrackingQueue
@@ -157,6 +157,17 @@ public:
 
 private:
     float m_rad;
+};
+
+class TrackingNodeSettings
+{
+public:
+    TrackingNodeSettings() {};
+    String name;
+    int port = DEF_PORT;
+    String address = String (DEF_ADDRESS);
+    String colour = String (DEF_COLOR);
+    bool apply = true;
 };
 
 class TrackingNode : public GenericProcessor
@@ -274,6 +285,7 @@ public:
                              "grey",
                              "violet",
                              "yellow" };
+    TrackingStimulatorCanvas* canvas = nullptr;
 
 private:
     CriticalSection lock;
@@ -287,7 +299,7 @@ private:
     // Time stim (probability window per process() callback)
     float m_timePassed;
     bool m_ttlTriggered;
-    bool m_ttlIsOn;    // true while a TTL pulse is active
+    bool m_ttlIsOn; // true while a TTL pulse is active
     int64 m_ttlOnSample; // absolute sample number when the TTL was turned on
 
     std::default_random_engine generator;
@@ -310,10 +322,11 @@ private:
     stim_mode m_stimMode;
     int m_pulseDuration;
 
-    int m_outputChan; // Selected stimulation chan
+    int m_outputChan = 0; // Selected stimulation chan
     int m_selectedStimSource; // Selected stimulation source
 
     OwnedArray<TrackingModule> trackers;
+    StreamSettings<TrackingNodeSettings> m_settings;
 
     // Continuous-output timing state (SOURCE mode)
     int64 m_sampleNumber;

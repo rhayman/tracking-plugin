@@ -32,8 +32,8 @@
 #include "TrackingStimulatorCanvas.h"
 #include "TrackingNode.h"
 
-TrackingStimulatorCanvas::TrackingStimulatorCanvas (GenericProcessor* sourceNode, TrackingNode* thread)
-    : Visualizer (sourceNode), processor (thread), m_width (1.0), m_height (1.0), m_updateCircle (true), m_onoff (false), m_isDeleting (true), settingsWidth (250), settingsHeight (600), selectedSource (-1), outputChan (0), sectionLabelFont ("Inter", "Semi Bold", 18.0f)
+TrackingStimulatorCanvas::TrackingStimulatorCanvas (TrackingNode* thread)
+    : processor (thread), m_width (1.0), m_height (1.0), m_updateCircle (true), m_onoff (false), m_isDeleting (true), settingsWidth (250), settingsHeight (600), selectedSource (-1), outputChan (0), sectionLabelFont ("Inter", "Semi Bold", 18.0f)
 {
     // Setup buttons
     initButtons();
@@ -1065,7 +1065,9 @@ void DisplayAxes::paint (Graphics& g)
     if (selectedSource != -1)
     {
         TrackingSources& source = processor->getTrackingSource (selectedSource);
-        Colour source_colour = color_palette[source.color];
+        // Colour source_colour = color_palette[source.color];
+        // TODO: source.color is not being set correctly, so for now just use red
+        Colour source_colour = color_palette["red"];
         g.setColour (source_colour);
 
         //std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
