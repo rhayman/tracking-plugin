@@ -323,7 +323,7 @@ private:
     int m_pulseDuration;
 
     int m_outputChan = 0; // Selected stimulation chan
-    int m_selectedStimSource; // Selected stimulation source
+    int m_selectedStimSource; // Selected stimulationsource
 
     OwnedArray<TrackingModule> trackers;
     StreamSettings<TrackingNodeSettings> m_settings;

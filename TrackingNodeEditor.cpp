@@ -181,12 +181,12 @@ int TrackingNodeEditor::getPort() const
 String TrackingNodeEditor::getAddress() const
 {
     Parameter* addressParam = getProcessor()->getParameter ("address");
-    return (String) addressParam->getValue();
+    return addressParam->getValue().toString();
 }
 String TrackingNodeEditor::getColor() const
 {
     Parameter* colorParam = getProcessor()->getParameter ("colour");
-    return (String) colorParam->getValue();
+    return colorParam->getValue().toString();
 }
 
 // void TrackingNodeEditor::updateCustomView()
