@@ -249,10 +249,24 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
             //DataStream* stream = dataStreams[0];
             uint16 streamId = stream->getStreamId();
             float sampleRate = stream->getSampleRate();
-            const int nSamples = continuousBuffer.getNumSamples();
+            const int maxSamples = continuousBuffer.getNumSamples();
 
-            if (sampleRate <= 0.0f || nSamples <= 0)
+            if (sampleRate <= 0.0f || maxSamples <= 0)
                 return;
+
+            // Number of tracking samples due since the last callback
+            const int64 nowTicks = Time::getHighResolutionTicks();
+            const double elapsedSec = Time::highResolutionTicksToSeconds (nowTicks - m_lastProcessTicks);
+            m_lastProcessTicks = nowTicks;
+
+            m_samplesAccumulated += elapsedSec * sampleRate;
+
+            const int nSamples = jmin (maxSamples, (int) m_samplesAccumulated);
+            m_samplesAccumulated -= nSamples;
+
+            // Avoid building an unbounded backlog if callbacks fall behind
+            if (m_samplesAccumulated > 1.0)
+                m_samplesAccumulated = 0.0;
 
             const int64 firstSample = m_sampleNumber;
 
@@ -261,8 +275,11 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
                                     static_cast<uint32> (nSamples),
                                     streamId);
 
+            if (nSamples == 0)
+                continue; // leave queued OSC messages for the next callback
+
             m_sampleNumber += nSamples;
-            m_timePassed = nSamples / sampleRate;
+            m_timePassed = (float) elapsedSec;
 
             // ---------------------------------------------------------------
             // Find the TTL event channel for this stream.
