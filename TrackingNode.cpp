@@ -403,19 +403,21 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
         const int yGlobalIndex = yChannel->getGlobalIndex();
 
         const float xValue = tracker->source.x_pos >= 0.0f
-                                 ? tracker->source.x_pos // * tracker->source.width
+                                 ? tracker->source.x_pos * tracker->source.width
                                  : 0.0f;
         const float yValue = tracker->source.y_pos >= 0.0f
-                                 ? tracker->source.y_pos // * tracker->source.height
+                                 ? tracker->source.y_pos * tracker->source.height
                                  : 0.0f;
 
+        LOGC ("xValue: ", xValue);
+        LOGC ("yValue: ", yValue);
         if (xGlobalIndex >= 0 && xGlobalIndex < continuousBuffer.getNumChannels())
         {
-            FloatVectorOperations::fill (continuousBuffer.getWritePointer (xGlobalIndex), xValue, nSamples);
+            FloatVectorOperations::fill (continuousBuffer.getWritePointer (xGlobalIndex), xValue, 1);
         }
         if (yGlobalIndex >= 0 && yGlobalIndex < continuousBuffer.getNumChannels())
         {
-            FloatVectorOperations::fill (continuousBuffer.getWritePointer (yGlobalIndex), yValue, nSamples);
+            FloatVectorOperations::fill (continuousBuffer.getWritePointer (yGlobalIndex), yValue, 1);
         }
     }
 
