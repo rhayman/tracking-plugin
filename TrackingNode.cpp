@@ -404,6 +404,7 @@ void TrackingNode::process (AudioBuffer<float>& continuousBuffer)
                 const int xGlobalIndex = xChannel->getGlobalIndex();
                 const int yGlobalIndex = yChannel->getGlobalIndex();
 
+                LOGC ("tracker width: ", tracker->source.width, " height: ", tracker->source.height, " x_pos: ", tracker->source.x_pos, " y_pos: ", tracker->source.y_pos);
                 const float xValue = tracker->source.x_pos >= 0.0f
                                          ? tracker->source.x_pos * tracker->source.width
                                          : 0.0f;
