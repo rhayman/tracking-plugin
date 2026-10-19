@@ -1067,8 +1067,9 @@ void DisplayAxes::paint (Graphics& g)
         TrackingSources& source = processor->getTrackingSource (selectedSource);
         // Colour source_colour = color_palette[source.color];
         // TODO: source.color is not being set correctly, so for now just use red
-        Colour source_colour = color_palette["red"];
-        g.setColour (source_colour);
+        Colour path_colour = color_palette["red"];
+        Colour pos_colour = color_palette["green"];
+        g.setColour (path_colour);
 
         //std::cout << "Source selected: " << selectedSource << ", num positions: " << m_positions[selectedSource].size() << std::endl;
 
@@ -1077,6 +1078,7 @@ void DisplayAxes::paint (Graphics& g)
         {
             for (auto it = m_positions[selectedSource].begin() + 1; it != m_positions[selectedSource].end(); it++)
             {
+                g.setColour(path_colour);
                 TrackingPosition position = *it;
                 TrackingPosition prev_position = *(it - 1);
 
@@ -1100,6 +1102,7 @@ void DisplayAxes::paint (Graphics& g)
             // Plot current position as ellipse
             if (! m_positions[selectedSource].empty())
             {
+                g.setColour(pos_colour);
                 TrackingPosition position = m_positions[selectedSource].back();
                 float x = getWidth() * position.x;
                 float y = getHeight() * position.y;
